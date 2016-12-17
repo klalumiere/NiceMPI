@@ -74,7 +74,13 @@ TEST_F(NiceMPItests, size) {
 }
 TEST_F(NiceMPItests, split) {
 	const Communicator splitted = splitEven();
-	EXPECT_EQ(std::max(world.size()/2,1),splitted.size());
+
+	int expectedSize = 0;
+	if(maxWolrdSize % 2 == 0) expectedSize = std::max(world.size()/2,1);
+	else if(world.rank() % 2 == 0) expectedSize = world.size()/2 + 1;
+	else expectedSize = world.size()/2;
+
+	EXPECT_EQ(expectedSize,splitted.size());
 	EXPECT_EQ(world.rank()/2,splitted.rank());
 }
 TEST_F(NiceMPItests, Assignment) {
