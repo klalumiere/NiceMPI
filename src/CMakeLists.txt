@@ -1,5 +1,5 @@
 if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/src"))
-    add_executable(NiceMPIunitTests NiceMPI_tests.cpp)
+    add_executable(NiceMPIunitTests NiceMPI_tests.cpp tests_main.cpp)
     target_include_directories(NiceMPIunitTests PUBLIC ${GTEST_INCLUDE_DIRS})
    
     set_target_properties(NiceMPIunitTests PROPERTIES CXX_STANDARD 11)
@@ -11,7 +11,6 @@ if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR
     target_link_libraries(NiceMPIunitTests PUBLIC "${StripMPIflags}")
     target_link_libraries(NiceMPIunitTests PUBLIC ${MPI_CXX_LIBRARIES})
     target_link_libraries(NiceMPIunitTests PUBLIC GTest::GTest)
-    target_link_libraries(NiceMPIunitTests PUBLIC GTest::Main)
     add_test(NAME NiceMPIunitTests COMMAND $<TARGET_FILE:NiceMPIunitTests>)
 
     add_custom_target(ParallelTestsNiceMPI DEPENDS NiceMPIunitTests)

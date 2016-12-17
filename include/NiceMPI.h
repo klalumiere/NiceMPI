@@ -28,7 +28,70 @@ SOFTWARE. */
 /** \brief An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH). **/
 namespace NiceMPI {
 
+/** \brief Initialize and finalize MPI using RAII. */
+struct MPI_RAII {
+	/** \brief Initializes MPI. */
+	MPI_RAII(int argc, char* argv[]) {
+		MPI_Init(&argc, &argv);
+	}
+	/** \brief Finalizes MPI. */
+	~MPI_RAII() {
+		MPI_Finalize();
+	}
+};
 
+/** \brief Represents a MPI communitator. */
+class Communicator {
+public:
+	Communicator() {
+		MPI_Comm_dup(MPI_COMM_WORLD, &mpiCommunicator);
+	}
+	Communicator(const Communicator& rhs) {
+		MPI_Comm_dup(rhs.mpiCommunicator, &mpiCommunicator);
+	}
+	Communicator(Communicator&& rhs): Communicator() {
+		std::swap(mpiCommunicator,rhs.mpiCommunicator);
+	}
+	~Communicator() {
+		MPI_Comm_free(&mpiCommunicator);
+	}
+	Communicator& operator=(const Communicator& rhs) {
+		if(this != &rhs) MPI_Comm_dup(rhs.mpiCommunicator, &mpiCommunicator);
+		return *this;
+	}
+	Communicator& operator=(Communicator&& rhs) {
+		std::swap(mpiCommunicator,rhs.mpiCommunicator);
+		return *this;
+	}
+
+	/** \brief Returns the MPI communicator associated to \p this. This method breaks encapsulation, but it is
+  provided in order to facilitate the interface with MPI functions not implemented here. Try to minimize its use. */
+	MPI_Comm get() const {
+		return mpiCommunicator;
+	}
+	int rank() const {
+		int rank;
+		MPI_Comm_rank(mpiCommunicator, &rank);
+		return rank;
+	}
+	int size() const {
+		int size;
+		MPI_Comm_size(mpiCommunicator, &size);
+		return size;
+	}
+	Communicator split(int color, int key) const {
+		MPI_Comm splitted;
+		MPI_Comm_split(mpiCommunicator,color,key,&splitted);
+		return Communicator{std::move(splitted)};
+	}
+
+private:
+	Communicator(MPI_Comm&& mpiCommunicatorRhs) {
+		mpiCommunicator = mpiCommunicatorRhs;
+	}
+
+	MPI_Comm mpiCommunicator;
+};
 
 } // NiceMPi
 
