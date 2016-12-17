@@ -15,7 +15,11 @@ if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR
     add_test(NAME NiceMPIunitTests COMMAND $<TARGET_FILE:NiceMPIunitTests>)
 
     add_custom_target(ParallelTestsNiceMPI DEPENDS NiceMPIunitTests)
-    set(CORES_NUMBER 3)
+    include(ProcessorCount)
+    ProcessorCount(CORES_NUMBER)
+    if(CORES_NUMBER EQUAL 0)
+        set(CORES_NUMBER 1)
+    endif()
     set(comments "Running tests with MPI on ${CORES_NUMBER} cores. Silence means success.\n")
     set(comments "${comments}See parallelTestsStdout.txt and parallelTestsStderr.txt for detailed output.\n")
     list(APPEND argsParallel ${MPIEXEC_NUMPROC_FLAG} ${CORES_NUMBER})
@@ -24,4 +28,6 @@ if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR
     list(APPEND argsParallel 2> ${PROJECT_BINARY_DIR}/parallelTestsStderr.txt)
     add_custom_command(COMMENT ${comments} COMMAND ${MPIEXEC} ARGS ${argsParallel} TARGET ParallelTestsNiceMPI)
     add_test(NAME ParallelTestsNiceMPI COMMAND ${MPIEXEC} ${argsParallel})
+
+    configure_file(buildInformationNiceMPI.h.in ${PROJECT_SOURCE_DIR}/include/buildInformationNiceMPI.h @ONLY)
 endif()
