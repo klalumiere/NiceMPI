@@ -24,6 +24,7 @@ SOFTWARE. */
 #define NICEMPI_H
 
 #include <mpi.h>
+#include <type_traits> // std::is_pod, std::enable_if
 
 /** \brief An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH). **/
 namespace NiceMPI {
@@ -65,7 +66,7 @@ public:
 	}
 
 	/** \brief Returns the MPI communicator associated to \p this. This method breaks encapsulation, but it is
-  provided in order to facilitate the interface with MPI functions not implemented here. Try to minimize its use. */
+  provided in order to facilitate the interface with MPI functions not implemented here. Minimize its use. */
 	MPI_Comm get() const {
 		return mpiCommunicator;
 	}
@@ -85,6 +86,17 @@ public:
 		return Communicator{std::move(splitted)};
 	}
 
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	Type receiveDataFrom(int source, int tag = 0) {
+		Type data;
+		MPI_Recv(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE);
+		return data;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	void sendDataTo(Type data, int destination, int tag = 0) {
+		MPI_Send(&data,sizeof(data),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator);
+	}
+
 private:
 	Communicator(MPI_Comm&& mpiCommunicatorRhs) {
 		mpiCommunicator = mpiCommunicatorRhs;
@@ -92,6 +104,12 @@ private:
 
 	MPI_Comm mpiCommunicator;
 };
+
+inline Communicator &getWorld() {
+	thread_local Communicator* neverDestructedWorld = nullptr;
+	if(!neverDestructedWorld) neverDestructedWorld = new Communicator; 
+	return *neverDestructedWorld;
+}
 
 } // NiceMPi
 

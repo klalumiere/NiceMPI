@@ -45,6 +45,9 @@ public:
 	}
 
 	const Communicator world;
+	const int sourceIndex = 0;
+	const int destinationIndex = world.size() -1;
+	const double tolerance = 1e-10;
 };
 
 
@@ -98,4 +101,54 @@ TEST_F(NiceMPItests, MoveAssignment) {
 	MPI_Comm lhs = splitted.get();
 	Communicator worldCopy;
 	EXPECT_TRUE( areEquals(lhs,(worldCopy = std::move(splitted)).get()) );
+}
+
+TEST_F(NiceMPItests, getGlobalWorld) {
+	EXPECT_TRUE( areEquals(getWorld().get(),getWorld().get()) );
+	EXPECT_TRUE( areCongruent(world.get(),getWorld().get()) );
+}
+TEST_F(NiceMPItests, sendAndReceive) {
+	if(sourceIndex == destinationIndex) return;
+	unsigned char toSend = 'K';
+	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
+	if(getWorld().rank() == destinationIndex) {
+		auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex);
+		
+		EXPECT_EQ(toSend,result);
+	}
+}
+TEST_F(NiceMPItests, sendAndReceiveAnything) {
+	if(sourceIndex == destinationIndex) return;
+	struct MyIntWrapper {
+		int value;
+		bool initialized;
+	};
+	struct MyCustomStruct {
+		int a;
+		double b;
+		char c;
+		MyIntWrapper d;
+	};
+	MyCustomStruct toSend{42,6.66,'K',MyIntWrapper{27,true}};
+	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
+	if(getWorld().rank() == destinationIndex) {
+		auto result = getWorld().receiveDataFrom<MyCustomStruct>(sourceIndex);
+		
+		EXPECT_EQ(toSend.a,result.a);
+		EXPECT_NEAR(toSend.b,result.b,tolerance);
+		EXPECT_EQ(toSend.c,result.c);
+		EXPECT_EQ(toSend.d.value,result.d.value);
+		EXPECT_EQ(toSend.d.initialized,result.d.initialized);
+	}
+}
+TEST_F(NiceMPItests, sendAndReceiveWithTag) {
+	if(sourceIndex == destinationIndex) return;
+	unsigned char toSend = 'K';
+	const int tag = 3;
+	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex,tag);
+	if(getWorld().rank() == destinationIndex) {
+		auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex,MPI_ANY_TAG);
+		
+		EXPECT_EQ(toSend,result);
+	}
 }
