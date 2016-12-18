@@ -109,10 +109,10 @@ TEST_F(NiceMPItests, getGlobalWorld) {
 }
 TEST_F(NiceMPItests, sendAndReceive) {
 	if(sourceIndex == destinationIndex) return;
-	unsigned char toSend = 'K';
+	const unsigned char toSend = 'K';
 	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
 	if(getWorld().rank() == destinationIndex) {
-		auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex);
+		const auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex);
 		
 		EXPECT_EQ(toSend,result);
 	}
@@ -129,7 +129,7 @@ TEST_F(NiceMPItests, sendAndReceiveAnything) {
 		char c;
 		MyIntWrapper d;
 	};
-	MyCustomStruct toSend{42,6.66,'K',MyIntWrapper{27,true}};
+	const MyCustomStruct toSend{42,6.66,'K',MyIntWrapper{27,true}};
 	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
 	if(getWorld().rank() == destinationIndex) {
 		auto result = getWorld().receiveDataFrom<MyCustomStruct>(sourceIndex);
@@ -143,11 +143,11 @@ TEST_F(NiceMPItests, sendAndReceiveAnything) {
 }
 TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 	if(sourceIndex == destinationIndex) return;
-	unsigned char toSend = 'K';
+	const unsigned char toSend = 'K';
 	const int tag = 3;
 	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex,tag);
 	if(getWorld().rank() == destinationIndex) {
-		auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex,MPI_ANY_TAG);
+		const auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex,MPI_ANY_TAG);
 		
 		EXPECT_EQ(toSend,result);
 	}
