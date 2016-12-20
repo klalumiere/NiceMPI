@@ -28,6 +28,12 @@ using namespace NiceMPI;
 
 class NiceMPItests : public ::testing::Test {
 public:
+	struct MyStruct {
+		int a;
+		double b;
+		char c;
+	};
+
 	bool areCongruent(const MPI_Comm &a, const MPI_Comm &b) const {
 		int result;
 		MPI_Comm_compare(a, b, &result);
@@ -43,11 +49,17 @@ public:
 		const int key = world.rank();
 		return world.split(color,key);
 	}
+	void expectNear(const MyStruct& expected, const MyStruct& actual, double tolerance) {
+		EXPECT_EQ(expected.a, actual.a);
+		EXPECT_NEAR(expected.b, actual.b, tolerance);
+		EXPECT_EQ(expected.c, actual.c);
+	}
 
 	const Communicator world;
 	const int sourceIndex = 0;
 	const int destinationIndex = world.size() -1;
-	const double tolerance = 1e-10;
+	const double defaultTolerance = 1e-10;
+	const MyStruct myStructInstance{42,6.66,'K'};
 };
 
 
@@ -119,26 +131,9 @@ TEST_F(NiceMPItests, sendAndReceive) {
 }
 TEST_F(NiceMPItests, sendAndReceiveAnything) {
 	if(sourceIndex == destinationIndex) return;
-	struct MyIntWrapper {
-		int value;
-		bool initialized;
-	};
-	struct MyCustomStruct {
-		int a;
-		double b;
-		char c;
-		MyIntWrapper d;
-	};
-	const MyCustomStruct toSend{42,6.66,'K',MyIntWrapper{27,true}};
-	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
+	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(myStructInstance,destinationIndex);
 	if(getWorld().rank() == destinationIndex) {
-		auto result = getWorld().receiveDataFrom<MyCustomStruct>(sourceIndex);
-		
-		EXPECT_EQ(toSend.a,result.a);
-		EXPECT_NEAR(toSend.b,result.b,tolerance);
-		EXPECT_EQ(toSend.c,result.c);
-		EXPECT_EQ(toSend.d.value,result.d.value);
-		EXPECT_EQ(toSend.d.initialized,result.d.initialized);
+		expectNear(myStructInstance, getWorld().receiveDataFrom<MyStruct>(sourceIndex), defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveWithTag) {
