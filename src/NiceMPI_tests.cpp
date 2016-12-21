@@ -20,6 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
+#include <vector>
 #include <gtest/gtest.h>
 #include <buildInformationNiceMPI.h>
 #include <NiceMPI.h>
@@ -53,6 +54,11 @@ public:
 		EXPECT_EQ(expected.a, actual.a);
 		EXPECT_NEAR(expected.b, actual.b, tolerance);
 		EXPECT_EQ(expected.c, actual.c);
+	}
+	MyStruct createStructForRank(int rank) {
+		MyStruct result{myStructInstance};
+		result.a = rank*2;
+		return result;
 	}
 
 	const Communicator world;
@@ -145,5 +151,34 @@ TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 		const auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex,MPI_ANY_TAG);
 		
 		EXPECT_EQ(toSend,result);
+	}
+}
+TEST_F(NiceMPItests, broadcast) {
+	MyStruct secret;
+	if(getWorld().rank() == sourceIndex) secret = myStructInstance;
+	expectNear(myStructInstance, getWorld().broadcast(sourceIndex, secret), defaultTolerance);
+}
+TEST_F(NiceMPItests, scatterOnlyOne) {
+	const int sendCount = 1;
+	std::vector<MyStruct> secrets;
+	if(getWorld().rank() == sourceIndex) {
+		const int totalSecretsNumber = getWorld().size();
+		for(int i = 0; i < totalSecretsNumber; ++i) secrets.push_back(createStructForRank(i));
+	}
+	const std::vector<MyStruct> result = getWorld().scatter(sourceIndex,secrets,sendCount);
+	ASSERT_EQ(sendCount,result.size());
+	expectNear(createStructForRank(getWorld().rank()), result.at(0), defaultTolerance);
+}
+TEST_F(NiceMPItests, scatterTwoWithSpare) {
+	const int sendCount = 2;
+	std::vector<MyStruct> secrets;
+	if(getWorld().rank() == sourceIndex) {
+		const int totalSecretsNumber = 3*getWorld().size();
+		for(int i = 0; i < totalSecretsNumber; ++i) secrets.push_back(createStructForRank(i));
+	}
+	const std::vector<MyStruct> result = getWorld().scatter(sourceIndex,secrets,sendCount);
+	ASSERT_EQ(sendCount,result.size());
+	for(auto&& i: {0,1}) {
+		expectNear(createStructForRank(sendCount*getWorld().rank()+i), result.at(i), defaultTolerance);
 	}
 }

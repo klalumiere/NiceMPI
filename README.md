@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The **MPI_RAII** struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). **getWorld()** is a function that returns a global **Communicator**. The class **Communicator** will be described in more details later. In the present context, it suffices to know that the **Communicator** returned by **getWorld()** is a wrapper around **MPI_COMM_WORLD**.
+This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The ``MPI_RAII`` struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). ``getWorld()`` is a function that returns a global ``Communicator``. The class ``Communicator`` will be described in more details later. In the present context, it suffices to know that the ``Communicator`` returned by ``getWorld()`` is a wrapper around ``MPI_COMM_WORLD``.
 
 Once you have a communicator, sending and receiving data is very easy. For instance, the code to send the char *'K'* from the first process in the world to the last is
 
@@ -60,16 +60,25 @@ if(getWorld().rank() == destinationIndex) {
 As advertised, it is very easy to go from this example to an example where you send any [POD](http://en.cppreference.com/w/cpp/concept/PODType) type.
 
 ```c++
-struct MyType {
+struct MyStruct {
 	double a;
 	int b;
 	char c;
 };
-const MyType toSend{6.66,42,'K'};
+const MyStruct toSend{6.66,42,'K'};
 if(getWorld().rank() == sourceIndex) {
 	getWorld().sendDataTo(toSend,destinationIndex);
 }
 if(getWorld().rank() == destinationIndex) {
-	auto result = getWorld().receiveDataFrom<MyType>(sourceIndex);
+	auto result = getWorld().receiveDataFrom<MyStruct>(sourceIndex);
 }
+```
+
+Typical MPI functions are implemented, and they can all be used with [POD](http://en.cppreference.com/w/cpp/concept/PODType)
+
+```c++
+MyStruct broadcasted = getWorld().broadcast(sourceIndex, toSend);
+const int sendCount = 2;
+std::vector<MyStruct> vecToSend(sendCount*getWorld().size());
+std::vector<MyStruct> scattered = getWorld().scatter(sourceIndex, vecToSend, sendCount);
 ```

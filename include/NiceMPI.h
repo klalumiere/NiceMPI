@@ -23,8 +23,9 @@ SOFTWARE. */
 #ifndef NICEMPI_H
 #define NICEMPI_H
 
-#include <mpi.h>
+#include <cassert>
 #include <type_traits> // std::is_pod, std::enable_if
+#include <mpi.h>
 
 /** \brief An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH). **/
 namespace NiceMPI {
@@ -87,10 +88,23 @@ public:
 	}
 
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	Type broadcast(int source, Type data) {
+		MPI_Bcast(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,mpiCommunicator);
+		return data;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	Type receiveDataFrom(int source, int tag = 0) {
 		Type data;
 		MPI_Recv(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE);
 		return data;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> scatter(int source, std::vector<Type> toSend, int sendCount) {
+		assert(rank() != source or (static_cast<int>(toSend.size()) - sendCount*size()) >= 0 );
+		std::vector<Type> result(sendCount);
+		MPI_Scatter(toSend.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, 
+			result.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, source, mpiCommunicator);
+		return result;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	void sendDataTo(Type data, int destination, int tag = 0) {
