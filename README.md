@@ -57,7 +57,7 @@ if(getWorld().rank() == destinationIndex) {
 }
 ```
 
-As advertised, it is very easy to go from this example to an example where you send any [POD](http://en.cppreference.com/w/cpp/concept/PODType) type.
+As advertised, it is very easy to go from this example to an example where you send any [POD](http://en.cppreference.com/w/cpp/concept/PODType) type
 
 ```c++
 struct MyStruct {
@@ -77,6 +77,7 @@ if(getWorld().rank() == destinationIndex) {
 Typical MPI functions are implemented, and they can all be used with [POD](http://en.cppreference.com/w/cpp/concept/PODType)
 
 ```c++
+//Useless examples since every process got all the data...
 MyStruct broadcasted = getWorld().broadcast(sourceIndex, toSend);
 const int sendCount = 2;
 std::vector<MyStruct> vecToSend(sendCount*getWorld().size());
