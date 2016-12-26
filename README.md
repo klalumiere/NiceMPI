@@ -19,7 +19,7 @@ Performances are a legitimate concern with this approach. What if, internally, t
 
 # Dependencies
 
-- A C++ compiler that supports C++11, like any somewhat recent versions of [clang++](http://clang.llvm.org/) or [g++](https://gcc.gnu.org/)
+- A C++ compiler that supports C++11, like recent versions of [clang++](http://clang.llvm.org/) or [g++](https://gcc.gnu.org/) [<sup>1</sup>](#footnoteOne). 
 - [MPICH](https://www.mpich.org/), an open source implementation of MPI. Other implementations of MPI might work with this library, but they were not tested.
 
 # Usage
@@ -85,3 +85,5 @@ std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex, vecToSend, sen
 std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
 std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
 ```
+
+<a name="footnoteOne"><sup>1</sup></a> The library is tested with clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final) and gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4).
