@@ -122,63 +122,64 @@ TEST_F(NiceMPItests, MoveAssignment) {
 }
 
 TEST_F(NiceMPItests, getGlobalWorld) {
-	EXPECT_TRUE( areEquals(getWorld().get(),getWorld().get()) );
-	EXPECT_TRUE( areCongruent(world.get(),getWorld().get()) );
+	EXPECT_TRUE( areEquals(MPI_COMM_WORLD,mpiWorld().get()) );
+	EXPECT_TRUE( areEquals(mpiWorld().get(),mpiWorld().get()) );
+	EXPECT_TRUE( areCongruent(world.get(),mpiWorld().get()) );
 }
 TEST_F(NiceMPItests, sendAndReceive) {
 	if(sourceIndex == destinationIndex) return;
 	const unsigned char toSend = 'K';
-	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex);
-	if(getWorld().rank() == destinationIndex) {
-		const auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex);
+	if(mpiWorld().rank() == destinationIndex) {
+		const auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex);
 		
 		EXPECT_EQ(toSend,result);
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveAnything) {
 	if(sourceIndex == destinationIndex) return;
-	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(myStructInstance,destinationIndex);
-	if(getWorld().rank() == destinationIndex) {
-		expectNear(myStructInstance, getWorld().receiveDataFrom<MyStruct>(sourceIndex), defaultTolerance);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(myStructInstance,destinationIndex);
+	if(mpiWorld().rank() == destinationIndex) {
+		expectNear(myStructInstance, mpiWorld().receiveAndBlock<MyStruct>(sourceIndex), defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 	if(sourceIndex == destinationIndex) return;
 	const unsigned char toSend = 'K';
 	const int tag = 3;
-	if(getWorld().rank() == sourceIndex) getWorld().sendDataTo(toSend,destinationIndex,tag);
-	if(getWorld().rank() == destinationIndex) {
-		const auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex,MPI_ANY_TAG);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex,tag);
+	if(mpiWorld().rank() == destinationIndex) {
+		const auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex,MPI_ANY_TAG);
 		
 		EXPECT_EQ(toSend,result);
 	}
 }
 TEST_F(NiceMPItests, broadcast) {
 	MyStruct secret;
-	if(getWorld().rank() == sourceIndex) secret = myStructInstance;
-	expectNear(myStructInstance, getWorld().broadcast(sourceIndex, secret), defaultTolerance);
+	if(mpiWorld().rank() == sourceIndex) secret = myStructInstance;
+	expectNear(myStructInstance, mpiWorld().broadcast(sourceIndex, secret), defaultTolerance);
 }
 TEST_F(NiceMPItests, scatterOnlyOne) {
 	const int sendCount = 1;
 	std::vector<MyStruct> secrets;
-	if(getWorld().rank() == sourceIndex) {
-		const int totalSecretsNumber = getWorld().size();
+	if(mpiWorld().rank() == sourceIndex) {
+		const int totalSecretsNumber = mpiWorld().size();
 		for(int i = 0; i < totalSecretsNumber; ++i) secrets.push_back(createStructForRank(i));
 	}
-	const std::vector<MyStruct> result = getWorld().scatter(sourceIndex,secrets,sendCount);
+	const std::vector<MyStruct> result = mpiWorld().scatter(sourceIndex,secrets,sendCount);
 	ASSERT_EQ(sendCount,result.size());
-	expectNear(createStructForRank(getWorld().rank()), result.at(0), defaultTolerance);
+	expectNear(createStructForRank(mpiWorld().rank()), result.at(0), defaultTolerance);
 }
 TEST_F(NiceMPItests, scatterTwoWithSpare) {
 	const int sendCount = 2;
 	std::vector<MyStruct> secrets;
-	if(getWorld().rank() == sourceIndex) {
-		const int totalSecretsNumber = 3*getWorld().size();
+	if(mpiWorld().rank() == sourceIndex) {
+		const int totalSecretsNumber = 3*mpiWorld().size();
 		for(int i = 0; i < totalSecretsNumber; ++i) secrets.push_back(createStructForRank(i));
 	}
-	const std::vector<MyStruct> result = getWorld().scatter(sourceIndex,secrets,sendCount);
+	const std::vector<MyStruct> result = mpiWorld().scatter(sourceIndex,secrets,sendCount);
 	ASSERT_EQ(sendCount,result.size());
 	for(auto&& i: {0,1}) {
-		expectNear(createStructForRank(sendCount*getWorld().rank()+i), result.at(i), defaultTolerance);
+		expectNear(createStructForRank(sendCount*mpiWorld().rank()+i), result.at(i), defaultTolerance);
 	}
 }

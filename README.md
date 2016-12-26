@@ -33,27 +33,27 @@ The typical program that print the world size and the rank of each process looks
 int main(int argc, char* argv[]) {
 	using namespace NiceMPI;
 	MPI_RAII instance{argc,argv};
-	if(getWorld().rank() == 0) {
-		std::cout << "The world size is " <<  getWorld().size() << std::endl;
+	if(mpiWorld().rank() == 0) {
+		std::cout << "The world size is " <<  mpiWorld().size() << std::endl;
 	}
-	std::cout << "I have rank " << getWorld().rank() << std::endl;
+	std::cout << "I have rank " << mpiWorld().rank() << std::endl;
 	return 0;
 }
 ```
 
-This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The ``MPI_RAII`` struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). ``getWorld()`` is a function that returns a global ``Communicator``. The class ``Communicator`` will be described in more details later. In the present context, it suffices to know that the ``Communicator`` returned by ``getWorld()`` is a wrapper around ``MPI_COMM_WORLD``.
+This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The ``MPI_RAII`` struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). ``mpiWorld()`` is a function that returns a global ``Communicator``. The class ``Communicator`` will be described in more details later. In the present context, it suffices to know that the ``Communicator`` returned by ``mpiWorld()`` is a wrapper around ``MPI_COMM_WORLD``.
 
 Once you have a communicator, sending and receiving data is very easy. For instance, the code to send the char *'K'* from the first process in the world to the last is
 
 ```c++
 const int sourceIndex = 0;
-const int destinationIndex = getWorld().size() -1;
+const int destinationIndex = mpiWorld().size() -1;
 const unsigned char toSend = 'K';
-if(getWorld().rank() == sourceIndex) {
-	getWorld().sendDataTo(toSend,destinationIndex);
+if(mpiWorld().rank() == sourceIndex) {
+	mpiWorld().sendAndBlock(toSend,destinationIndex);
 }
-if(getWorld().rank() == destinationIndex) {
-	auto result = getWorld().receiveDataFrom<unsigned char>(sourceIndex);
+if(mpiWorld().rank() == destinationIndex) {
+	auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex);
 }
 ```
 
@@ -66,11 +66,11 @@ struct MyStruct {
 	char c;
 };
 const MyStruct toSend{6.66,42,'K'};
-if(getWorld().rank() == sourceIndex) {
-	getWorld().sendDataTo(toSend,destinationIndex);
+if(mpiWorld().rank() == sourceIndex) {
+	mpiWorld().sendAndBlock(toSend,destinationIndex);
 }
-if(getWorld().rank() == destinationIndex) {
-	auto result = getWorld().receiveDataFrom<MyStruct>(sourceIndex);
+if(mpiWorld().rank() == destinationIndex) {
+	auto result = mpiWorld().receiveAndBlock<MyStruct>(sourceIndex);
 }
 ```
 
@@ -78,8 +78,8 @@ Typical MPI functions are implemented, and they can all be used with [POD](http:
 
 ```c++
 //Useless examples since every process got all the data...
-MyStruct broadcasted = getWorld().broadcast(sourceIndex, toSend);
+MyStruct broadcasted = mpiWorld().broadcast(sourceIndex, toSend);
 const int sendCount = 2;
-std::vector<MyStruct> vecToSend(sendCount*getWorld().size());
-std::vector<MyStruct> scattered = getWorld().scatter(sourceIndex, vecToSend, sendCount);
+std::vector<MyStruct> vecToSend(sendCount*mpiWorld().size());
+std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex, vecToSend, sendCount);
 ```
