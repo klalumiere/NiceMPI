@@ -86,4 +86,8 @@ std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
 std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
 ```
 
+# Reference
+
+- [An excellent MPI tutorial](http://mpitutorial.com/tutorials/).
+
 <a name="footnoteOne"><sup>1</sup></a> The library is tested with clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final) and gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4).
