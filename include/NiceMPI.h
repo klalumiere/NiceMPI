@@ -96,6 +96,21 @@ public:
 		return data;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> gather(int source, Type data) {
+		std::vector<Type> result;
+		if(rank() == source) result.resize(size());
+		MPI_Gather(&data,sizeof(data),MPI_UNSIGNED_CHAR,result.data(),sizeof(data),MPI_UNSIGNED_CHAR,source,
+			mpiCommunicator);
+		return result;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> allGather(Type data) {
+		std::vector<Type> result(size());
+		MPI_Allgather(&data,sizeof(data),MPI_UNSIGNED_CHAR,result.data(),sizeof(data),MPI_UNSIGNED_CHAR,
+			mpiCommunicator);
+		return result;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	Type receiveAndBlock(int source, int tag = 0) {
 		Type data;
 		MPI_Recv(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE);

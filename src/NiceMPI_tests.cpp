@@ -183,3 +183,30 @@ TEST_F(NiceMPItests, scatterTwoWithSpare) {
 		expectNear(createStructForRank(sendCount*mpiWorld().rank()+i), result.at(i), defaultTolerance);
 	}
 }
+TEST_F(NiceMPItests, gather) {
+	MyStruct myData{myStructInstance};
+	myData.a = mpiWorld().rank()*2;
+	const std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,myData);
+	if(mpiWorld().rank()==sourceIndex) {
+		ASSERT_EQ(mpiWorld().size(),gathered.size());
+		for(int i=0; i<mpiWorld().size(); ++i) {
+			MyStruct expected{myStructInstance};
+			expected.a = 2*i;
+			expectNear(expected,gathered[i],defaultTolerance);
+		}
+	}
+	else {
+		EXPECT_EQ(0,gathered.size());
+	}
+}
+TEST_F(NiceMPItests, allGather) {
+	MyStruct myData{myStructInstance};
+	myData.a = mpiWorld().rank()*2;
+	const std::vector<MyStruct> gathered = mpiWorld().allGather(myData);
+	ASSERT_EQ(mpiWorld().size(),gathered.size());
+	for(int i=0; i<mpiWorld().size(); ++i) {
+		MyStruct expected{myStructInstance};
+		expected.a = 2*i;
+		expectNear(expected,gathered[i],defaultTolerance);
+	}
+}

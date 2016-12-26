@@ -82,4 +82,6 @@ MyStruct broadcasted = mpiWorld().broadcast(sourceIndex, toSend);
 const int sendCount = 2;
 std::vector<MyStruct> vecToSend(sendCount*mpiWorld().size());
 std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex, vecToSend, sendCount);
+std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
+std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
 ```
