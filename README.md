@@ -86,7 +86,7 @@ std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
 std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
 ```
 
-# Reference
+# References
 
 - [An excellent MPI tutorial](http://mpitutorial.com/tutorials/).
 
