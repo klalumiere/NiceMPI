@@ -68,7 +68,10 @@ public:
 	const MyStruct myStructInstance{42,6.66,'K'};
 };
 
-
+TEST_F(NiceMPItests, NiceMPIexception) {
+	NiceMPIexception a{3};
+	EXPECT_EQ(3,a.error);
+}
 TEST_F(NiceMPItests, CommunicatorWorldDefault) {
 	EXPECT_TRUE( areCongruent(MPI_COMM_WORLD,world.get()) );
 }

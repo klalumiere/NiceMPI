@@ -36,17 +36,24 @@ namespace NiceMPI {
 /** \brief Forward declaration. */
 class Communicator &mpiWorld();
 
+class NiceMPIexception: public std::runtime_error {
+public:
+	NiceMPIexception(int error): std::runtime_error("Error code " + std::to_string(error) + " in MPI."), error(error)
+	{}
+
+	int error;
+};
+
 /** \brief Initialize and finalize MPI using RAII. */
 struct MPI_RAII {
 	/** \brief Initializes MPI. */
 	MPI_RAII(int argc, char* argv[]) {
 		int error = MPI_Init(&argc, &argv);
-		if(error != MPI_SUCCESS) throw std::runtime_error("Error code " + std::to_string(error) + " in MPI.");
+		if(error != MPI_SUCCESS) throw NiceMPIexception{error};
 	}
 	/** \brief Finalizes MPI. */
 	~MPI_RAII() {
 		int error = MPI_Finalize();
-		assert(error == MPI_SUCCESS); // guarantee stack unwinding in debug mode
 		if(error != MPI_SUCCESS) std::terminate();
 	}
 };
@@ -145,7 +152,7 @@ private:
 		mpiCommunicator = mpiCommunicatorRhs;
 	}
 	static void handleError(int error) {
-		if(error != MPI_SUCCESS) throw std::runtime_error("Error code " + std::to_string(error) + " in MPI.");
+		if(error != MPI_SUCCESS) throw NiceMPIexception{error};
 	}
 
 	MPI_Comm mpiCommunicator;
