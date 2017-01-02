@@ -30,9 +30,9 @@ using namespace NiceMPI;
 class NiceMPItests : public ::testing::Test {
 public:
 	struct MyStruct {
-		int a;
-		double b;
-		char c;
+		int theInt;
+		double theDouble;
+		char theChar;
 	};
 
 	bool areCongruent(const MPI_Comm &a, const MPI_Comm &b) const {
@@ -51,14 +51,22 @@ public:
 		return world.split(color,key);
 	}
 	void expectNear(const MyStruct& expected, const MyStruct& actual, double tolerance) {
-		EXPECT_EQ(expected.a, actual.a);
-		EXPECT_NEAR(expected.b, actual.b, tolerance);
-		EXPECT_EQ(expected.c, actual.c);
+		EXPECT_EQ(expected.theInt, actual.theInt);
+		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
+		EXPECT_EQ(expected.theChar, actual.theChar);
 	}
 	MyStruct createStructForRank(int rank) {
 		MyStruct result{myStructInstance};
-		result.a = rank*2;
+		result.theInt = rank*2;
 		return result;
+	}
+	void testGather(const std::vector<MyStruct>& gathered) {
+		ASSERT_EQ(mpiWorld().size(),gathered.size());
+		for(int i=0; i<mpiWorld().size(); ++i) {
+			MyStruct expected{myStructInstance};
+			expected.theInt = 2*i;
+			expectNear(expected,gathered[i],defaultTolerance);
+		}
 	}
 
 	const Communicator world;
@@ -68,12 +76,14 @@ public:
 	const MyStruct myStructInstance{42,6.66,'K'};
 };
 
+
 TEST_F(NiceMPItests, NiceMPIexception) {
-	NiceMPIexception a{3};
-	EXPECT_EQ(3,a.error);
+	const NiceMPIexception x{3};
+	EXPECT_EQ(3,x.error);
 }
 TEST_F(NiceMPItests, CommunicatorWorldDefault) {
 	EXPECT_TRUE( areCongruent(MPI_COMM_WORLD,world.get()) );
+	EXPECT_FALSE( areEquals(MPI_COMM_WORLD,world.get()) );
 }
 TEST_F(NiceMPItests, Copy) {
 	const Communicator copy{world};
@@ -85,6 +95,7 @@ TEST_F(NiceMPItests, Move) {
 	const Communicator movedInto{std::move(toMove)};
 	EXPECT_TRUE( areEquals(lhs,movedInto.get()) );
 }
+
 
 TEST_F(NiceMPItests, rank) {
 	int rank;
@@ -123,20 +134,19 @@ TEST_F(NiceMPItests, MoveAssignment) {
 	Communicator worldCopy;
 	EXPECT_TRUE( areEquals(lhs,(worldCopy = std::move(splitted)).get()) );
 }
-
-TEST_F(NiceMPItests, getGlobalWorld) {
+TEST_F(NiceMPItests, mpiWorld) {
 	EXPECT_TRUE( areEquals(MPI_COMM_WORLD,mpiWorld().get()) );
 	EXPECT_TRUE( areEquals(mpiWorld().get(),mpiWorld().get()) );
 	EXPECT_TRUE( areCongruent(world.get(),mpiWorld().get()) );
 }
+
+
 TEST_F(NiceMPItests, sendAndReceive) {
 	if(sourceIndex == destinationIndex) return;
 	const unsigned char toSend = 'K';
 	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex);
 	if(mpiWorld().rank() == destinationIndex) {
-		const auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex);
-		
-		EXPECT_EQ(toSend,result);
+		EXPECT_EQ(toSend,mpiWorld().receiveAndBlock<unsigned char>(sourceIndex));
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveAnything) {
@@ -152,9 +162,7 @@ TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 	const int tag = 3;
 	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex,tag);
 	if(mpiWorld().rank() == destinationIndex) {
-		const auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex,MPI_ANY_TAG);
-		
-		EXPECT_EQ(toSend,result);
+		EXPECT_EQ(toSend,mpiWorld().receiveAndBlock<unsigned char>(sourceIndex,MPI_ANY_TAG));
 	}
 }
 TEST_F(NiceMPItests, broadcast) {
@@ -177,7 +185,7 @@ TEST_F(NiceMPItests, scatterTwoWithSpare) {
 	const int sendCount = 2;
 	std::vector<MyStruct> secrets;
 	if(mpiWorld().rank() == sourceIndex) {
-		const int totalSecretsNumber = 3*mpiWorld().size();
+		const int totalSecretsNumber = (sendCount+1)*mpiWorld().size();
 		for(int i = 0; i < totalSecretsNumber; ++i) secrets.push_back(createStructForRank(i));
 	}
 	const std::vector<MyStruct> result = mpiWorld().scatter(sourceIndex,secrets,sendCount);
@@ -187,29 +195,11 @@ TEST_F(NiceMPItests, scatterTwoWithSpare) {
 	}
 }
 TEST_F(NiceMPItests, gather) {
-	MyStruct myData{myStructInstance};
-	myData.a = mpiWorld().rank()*2;
-	const std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,myData);
-	if(mpiWorld().rank()==sourceIndex) {
-		ASSERT_EQ(mpiWorld().size(),gathered.size());
-		for(int i=0; i<mpiWorld().size(); ++i) {
-			MyStruct expected{myStructInstance};
-			expected.a = 2*i;
-			expectNear(expected,gathered[i],defaultTolerance);
-		}
-	}
-	else {
-		EXPECT_EQ(0,gathered.size());
-	}
+	const std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex, createStructForRank(mpiWorld().rank()) );
+	if(mpiWorld().rank()==sourceIndex) testGather(gathered);
+	else EXPECT_EQ(0,gathered.size());
 }
 TEST_F(NiceMPItests, allGather) {
-	MyStruct myData{myStructInstance};
-	myData.a = mpiWorld().rank()*2;
-	const std::vector<MyStruct> gathered = mpiWorld().allGather(myData);
-	ASSERT_EQ(mpiWorld().size(),gathered.size());
-	for(int i=0; i<mpiWorld().size(); ++i) {
-		MyStruct expected{myStructInstance};
-		expected.a = 2*i;
-		expectNear(expected,gathered[i],defaultTolerance);
-	}
+	const MyStruct myData = createStructForRank(mpiWorld().rank());
+	testGather(mpiWorld().allGather(myData));
 }
