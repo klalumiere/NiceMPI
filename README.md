@@ -57,6 +57,8 @@ if(mpiWorld().rank() == destinationIndex) {
 }
 ```
 
+You'll notice that, when necessary, the wrapper use a more precise name than the MPI function it wraps. For instance, above, ``MPI_Send`` and ``MPI_Recv`` were renamed to ``sendAndBlock`` and ``receiveAndBlock`` in order to put the emphasis on the blocking property of these functions.
+
 As advertised, it is very easy to go from this example to an example where you send any [POD](http://en.cppreference.com/w/cpp/concept/PODType) type
 
 ```c++
@@ -84,6 +86,12 @@ std::vector<MyStruct> vecToSend(sendCount*mpiWorld().size());
 std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex, vecToSend, sendCount);
 std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
 std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
+std::vector<int> sendCounts(mpiWorld().size());
+std::vector<MyStruct> scatteredv = mpiWorld().varyingScatter(sourceIndex,vecToSend,
+	sendCounts); // Default displacements used
+std::vector<int> displacements(mpiWorld().size());
+std::vector<MyStruct> scatteredvTwo = mpiWorld().varyingScatter(sourceIndex,vecToSend,
+	sendCounts,displacements);
 ```
 
 # References

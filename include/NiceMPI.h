@@ -30,6 +30,8 @@ SOFTWARE. */
 #include <type_traits> // std::is_pod, std::enable_if
 #include <mpi.h>
 
+#define UNUSED(x) ((void)x)
+
 /** \brief An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH). **/
 namespace NiceMPI {
 
@@ -130,8 +132,9 @@ public:
 		return data;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
-	std::vector<Type> scatter(int source, std::vector<Type> toSend, int sendCount) {
-		assert(rank() != source or (static_cast<int>(toSend.size()) - sendCount*size()) >= 0 );
+	std::vector<Type> scatter(int source, const std::vector<Type>& toSend, int sendCount) {
+		const bool enoughDataToSend = (static_cast<int>(toSend.size()) - sendCount*size()) >= 0;
+		assert(rank() != source or enoughDataToSend); UNUSED(enoughDataToSend);
 		std::vector<Type> result(sendCount);
 		handleError(MPI_Scatter(toSend.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, 
 			result.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, source, mpiCommunicator));
@@ -140,6 +143,28 @@ public:
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	void sendAndBlock(Type data, int destination, int tag = 0) {
 		handleError(MPI_Send(&data,sizeof(data),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator));
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> varyingScatter(int source, const std::vector<Type>& toSend, const std::vector<int>& sendCounts,
+		const std::vector<int>& displacements = {})
+	{
+		const auto enoughDataToSend = [&] () {
+			decltype(toSend.size()) sumOfSendCounts = 0;
+			for(auto&& x: sendCounts) {
+				assert(x >= 0);
+				sumOfSendCounts += x;
+			};
+			return toSend.size() >= sumOfSendCounts;
+		};
+		assert(rank() != source or enoughDataToSend()); UNUSED(enoughDataToSend);
+		assert(static_cast<int>(sendCounts.size()) >= size());
+
+		std::vector<int> scaledSendCounts(sendCounts);
+		for(auto&& x: scaledSendCounts) x *= sizeof(Type);
+		const std::vector<int> scaledDisplacements = displacements.empty() ?
+			createDefaultDisplacements(scaledSendCounts) :
+			createScaledDisplacements<Type>(displacements);
+		return varyingScatterImpl(source,toSend,sendCounts,scaledSendCounts,scaledDisplacements);
 	}
 
 	friend Communicator &mpiWorld() {
@@ -151,8 +176,28 @@ private:
 	Communicator(MPI_Comm&& mpiCommunicatorRhs) {
 		mpiCommunicator = mpiCommunicatorRhs;
 	}
+	static std::vector<int> createDefaultDisplacements(const std::vector<int>& sendCounts) {
+		std::vector<int> displacements(sendCounts.size());
+		for(unsigned i = 1; i<sendCounts.size(); ++i) displacements[i] = displacements[i-1] + sendCounts[i-1];
+		return displacements;
+	}
+	template<typename Type>
+	static std::vector<int> createScaledDisplacements(std::vector<int> displacements) {
+		for(auto&& x: displacements) x *= sizeof(Type);
+		return displacements;
+	}
 	static void handleError(int error) {
 		if(error != MPI_SUCCESS) throw NiceMPIexception{error};
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> varyingScatterImpl(int source, const std::vector<Type>& toSend,
+		const std::vector<int>& sendCounts, const std::vector<int>& scaledSendCounts,
+		const std::vector<int>& displacements)
+	{
+		std::vector<Type> result(sendCounts[rank()]);
+		handleError(MPI_Scatterv(toSend.data(), scaledSendCounts.data(), displacements.data(), MPI_UNSIGNED_CHAR, 
+			result.data(), scaledSendCounts[rank()], MPI_UNSIGNED_CHAR, source, mpiCommunicator));
+		return result;
 	}
 
 	MPI_Comm mpiCommunicator;
