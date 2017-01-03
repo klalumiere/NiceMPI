@@ -76,7 +76,7 @@ if(mpiWorld().rank() == destinationIndex) {
 }
 ```
 
-Typical MPI functions are implemented, and they can all be used with [POD](http://en.cppreference.com/w/cpp/concept/PODType)
+Typical MPI functions are implemented, and they can all be used with [POD](http://en.cppreference.com/w/cpp/concept/PODType). For instance, the basic collective communication methods are
 
 ```c++
 //Useless examples since every process got all the data...
@@ -86,6 +86,11 @@ std::vector<MyStruct> vecToSend(sendCount*mpiWorld().size());
 std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex, vecToSend, sendCount);
 std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex,toSend);
 std::vector<MyStruct> allGathered = mpiWorld().allGather(toSend);
+```
+
+Their varying counterparts are
+
+```c++
 std::vector<int> sendCounts(mpiWorld().size());
 std::vector<MyStruct> scatteredv = mpiWorld().varyingScatter(sourceIndex,vecToSend,
 	sendCounts); // Default displacements used
