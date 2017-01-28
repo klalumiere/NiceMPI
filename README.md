@@ -97,6 +97,12 @@ std::vector<MyStruct> scatteredv = mpiWorld().varyingScatter(sourceIndex,vecToSe
 std::vector<int> displacements(mpiWorld().size());
 std::vector<MyStruct> scatteredvTwo = mpiWorld().varyingScatter(sourceIndex,vecToSend,
 	sendCounts,displacements);
+
+std::vector<int> receiveCounts(mpiWorld().size());
+std::vector<MyStruct> gatheredv = mpiWorld().varyingGather(sourceIndex,vecToSend,
+	receiveCounts); // Default displacements used
+std::vector<MyStruct> gatheredvTwo = mpiWorld().varyingGather(sourceIndex,vecToSend,
+	receiveCounts,displacements);
 ```
 
 # References

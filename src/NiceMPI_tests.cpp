@@ -56,7 +56,7 @@ public:
 		EXPECT_EQ(expected.theChar, actual.theChar);
 	}
 	PODtype createPODtypeForRank(int rank) {
-		PODtype result{myStructInstance};
+		PODtype result{podTypeInstance};
 		result.theInt = rank*2;
 		return result;
 	}
@@ -69,7 +69,7 @@ public:
 	void testGather(const std::vector<PODtype>& gathered) {
 		ASSERT_EQ(mpiWorld().size(),gathered.size());
 		for(int i=0; i<mpiWorld().size(); ++i) {
-			PODtype expected{myStructInstance};
+			PODtype expected{podTypeInstance};
 			expected.theInt = 2*i;
 			expectNear(expected,gathered[i],defaultTolerance);
 		}
@@ -79,8 +79,8 @@ public:
 	const int sourceIndex = 0;
 	const int destinationIndex = world.size() -1;
 	const double defaultTolerance = 1e-10;
-	const PODtype myStructInstance{42,6.66,'K'};
-	const std::vector<PODtype> defaultSecrets = createPODtypeCollection(mpiWorld().size());
+	const PODtype podTypeInstance{42,6.66,'K'};
+	const std::vector<PODtype> defaultCollection = createPODtypeCollection(mpiWorld().size());
 };
 
 
@@ -158,9 +158,9 @@ TEST_F(NiceMPItests, sendAndReceive) {
 }
 TEST_F(NiceMPItests, sendAndReceiveAnything) {
 	if(sourceIndex == destinationIndex) return;
-	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(myStructInstance,destinationIndex);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(podTypeInstance,destinationIndex);
 	if(mpiWorld().rank() == destinationIndex) {
-		expectNear(myStructInstance, mpiWorld().receiveAndBlock<PODtype>(sourceIndex), defaultTolerance);
+		expectNear(podTypeInstance, mpiWorld().receiveAndBlock<PODtype>(sourceIndex), defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveWithTag) {
@@ -173,13 +173,13 @@ TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 	}
 }
 TEST_F(NiceMPItests, broadcast) {
-	PODtype secret;
-	if(mpiWorld().rank() == sourceIndex) secret = myStructInstance;
-	expectNear(myStructInstance, mpiWorld().broadcast(sourceIndex, secret), defaultTolerance);
+	PODtype data;
+	if(mpiWorld().rank() == sourceIndex) data = podTypeInstance;
+	expectNear(podTypeInstance, mpiWorld().broadcast(sourceIndex, data), defaultTolerance);
 }
 TEST_F(NiceMPItests, scatterOnlyOne) {
 	const int sendCount = 1;
-	const std::vector<PODtype> scattered = mpiWorld().scatter(sourceIndex,defaultSecrets,sendCount);
+	const std::vector<PODtype> scattered = mpiWorld().scatter(sourceIndex,defaultCollection,sendCount);
 	ASSERT_EQ(sendCount,scattered.size());
 	expectNear(createPODtypeForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
 }
@@ -204,12 +204,12 @@ TEST_F(NiceMPItests, allGather) {
 
 TEST_F(NiceMPItests, varyingScatterNothingSent) {
 	const std::vector<int> sendCounts(mpiWorld().size());
-	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultSecrets,sendCounts);
-	EXPECT_EQ(scattered.size(),0);
+	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultCollection,sendCounts);
+	EXPECT_EQ(0,scattered.size());
 }
 TEST_F(NiceMPItests, varyingScatterOneEach) {
 	const std::vector<int> sendCounts(mpiWorld().size(),1);
-	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultSecrets,sendCounts);
+	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultCollection,sendCounts);
 	ASSERT_EQ(sendCounts.at(0),scattered.size());
 	expectNear(createPODtypeForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
 }
@@ -219,7 +219,7 @@ TEST_F(NiceMPItests, varyingScatterHalfToTheSame) {
 	std::vector<int> displacements(mpiWorld().size());
 	displacements[destinationIndex] = mpiWorld().size()/2;
 
-	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultSecrets,sendCounts,
+	const std::vector<PODtype> scattered = mpiWorld().varyingScatter(sourceIndex,defaultCollection,sendCounts,
 		displacements);
 	if(mpiWorld().rank() == destinationIndex) {
 		ASSERT_EQ(sendCounts[destinationIndex],scattered.size());
@@ -230,4 +230,39 @@ TEST_F(NiceMPItests, varyingScatterHalfToTheSame) {
 	else {
 		EXPECT_EQ(0,scattered.size());
 	}
+}
+TEST_F(NiceMPItests, varyingGatherNothingGathered) {
+	const std::vector<PODtype> data;
+	const std::vector<int> receiveCounts(mpiWorld().size());
+	const std::vector<PODtype> gathered = mpiWorld().varyingGather(sourceIndex,data,receiveCounts);
+	EXPECT_EQ(0,gathered.size());
+}
+TEST_F(NiceMPItests, varyingGatherOneFromEach) {
+	const std::vector<PODtype> data = { createPODtypeForRank(mpiWorld().rank()) };
+	const std::vector<int> receiveCounts(mpiWorld().size(),1);
+	const std::vector<PODtype> gathered = mpiWorld().varyingGather(sourceIndex,data,receiveCounts);
+	if(mpiWorld().rank()==sourceIndex) testGather(gathered);
+	else EXPECT_EQ(0,gathered.size());
+}
+TEST_F(NiceMPItests, varyingGatherHalfFromTheSame) {
+	std::vector<PODtype> data;
+	std::vector<int> receiveCounts(mpiWorld().size());
+	std::vector<int> displacements(mpiWorld().size());
+	if(mpiWorld().rank()==sourceIndex or mpiWorld().rank() == destinationIndex) {
+		for(auto&&x : {mpiWorld().rank(), mpiWorld().rank() + 1}) data.emplace_back(createPODtypeForRank(x));
+	}
+	if(mpiWorld().rank()==sourceIndex) {
+		receiveCounts[sourceIndex] = data.size();
+		receiveCounts[destinationIndex] = data.size();
+		displacements[sourceIndex] = data.size();
+		displacements[destinationIndex] = 0;
+	}
+	const std::vector<PODtype> gathered = mpiWorld().varyingGather(sourceIndex,data,receiveCounts,displacements);
+	if(mpiWorld().rank()==sourceIndex) {
+		const std::vector<int> expectedOrder = { destinationIndex, destinationIndex +1, sourceIndex, sourceIndex + 1};
+		for(unsigned i = 0; i < gathered.size(); ++i) {
+			expectNear(createPODtypeForRank(expectedOrder[i]), gathered[i], defaultTolerance);
+		}
+	}
+	else EXPECT_EQ(0,gathered.size());
 }

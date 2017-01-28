@@ -107,28 +107,28 @@ public:
 
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	Type broadcast(int source, Type data) {
-		handleError(MPI_Bcast(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,mpiCommunicator));
+		handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,mpiCommunicator));
 		return data;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> gather(int source, Type data) {
 		std::vector<Type> result;
 		if(rank() == source) result.resize(size());
-		handleError(MPI_Gather(&data,sizeof(data),MPI_UNSIGNED_CHAR,result.data(),sizeof(data),MPI_UNSIGNED_CHAR,source,
+		handleError(MPI_Gather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,
 			mpiCommunicator));
 		return result;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> allGather(Type data) {
 		std::vector<Type> result(size());
-		handleError(MPI_Allgather(&data,sizeof(data),MPI_UNSIGNED_CHAR,result.data(),sizeof(data),MPI_UNSIGNED_CHAR,
+		handleError(MPI_Allgather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,
 			mpiCommunicator));
 		return result;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	Type receiveAndBlock(int source, int tag = 0) {
 		Type data;
-		handleError(MPI_Recv(&data,sizeof(data),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE));
+		handleError(MPI_Recv(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE));
 		return data;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
@@ -142,7 +142,25 @@ public:
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	void sendAndBlock(Type data, int destination, int tag = 0) {
-		handleError(MPI_Send(&data,sizeof(data),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator));
+		handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator));
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> varyingGather(int source, const std::vector<Type>& data, const std::vector<int>& receiveCounts,
+		const std::vector<int>& displacements = {})
+	{
+		std::vector<Type> result;
+		std::vector<int> scaledReceiveCounts;
+		std::vector<int> scaledDisplacements;
+		if(rank() == source) {
+			result.resize(sum(receiveCounts));
+			scaledReceiveCounts = receiveCounts;
+			for(auto&& x: scaledReceiveCounts) x *= sizeof(Type);
+			if(displacements.empty()) scaledDisplacements = createDefaultDisplacements(scaledReceiveCounts);
+			else scaledDisplacements = createScaledDisplacements<Type>(displacements);
+		}
+		handleError(MPI_Gatherv(data.data(), data.size()*sizeof(Type), MPI_UNSIGNED_CHAR, result.data(),
+			scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, source, mpiCommunicator));
+		return result;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> varyingScatter(int source, const std::vector<Type>& toSend, const std::vector<int>& sendCounts,
@@ -188,6 +206,11 @@ private:
 	}
 	static void handleError(int error) {
 		if(error != MPI_SUCCESS) throw NiceMPIexception{error};
+	}
+	static int sum(const std::vector<int>& data) {
+		int theSum = 0;
+		for(auto&& x: data) theSum += x;
+		return theSum;
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> varyingScatterImpl(int source, const std::vector<Type>& toSend,
