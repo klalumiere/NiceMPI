@@ -55,7 +55,7 @@ public:
 		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
 		EXPECT_EQ(expected.theChar, actual.theChar);
 	}
-	MyStruct createStructForRank(int rank) {
+	MyStruct createMyStructForRank(int rank) {
 		MyStruct result{myStructInstance};
 		result.theInt = rank*2;
 		return result;
@@ -63,7 +63,7 @@ public:
 	std::vector<MyStruct> createSecrets(const int secretsCount) {
 		if(mpiWorld().rank() != sourceIndex) return {};
 		std::vector<MyStruct> secrets;
-		for(int i = 0; i < secretsCount; ++i) secrets.push_back(createStructForRank(i));
+		for(int i = 0; i < secretsCount; ++i) secrets.push_back(createMyStructForRank(i));
 		return secrets;
 	}
 	void testGather(const std::vector<MyStruct>& gathered) {
@@ -84,11 +84,11 @@ public:
 };
 
 
-TEST_F(NiceMPItests, NiceMPIexception) {
+TEST_F(NiceMPItests, NiceMPIexceptionExist) {
 	const NiceMPIexception x{3};
 	EXPECT_EQ(3,x.error);
 }
-TEST_F(NiceMPItests, CommunicatorWorldDefault) {
+TEST_F(NiceMPItests, newCommunicatorIsWorldCongruent) {
 	EXPECT_TRUE( areCongruent(MPI_COMM_WORLD,world.get()) );
 	EXPECT_FALSE( areEquals(MPI_COMM_WORLD,world.get()) );
 }
@@ -181,7 +181,7 @@ TEST_F(NiceMPItests, scatterOnlyOne) {
 	const int sendCount = 1;
 	const std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex,defaultSecrets,sendCount);
 	ASSERT_EQ(sendCount,scattered.size());
-	expectNear(createStructForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
+	expectNear(createMyStructForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
 }
 TEST_F(NiceMPItests, scatterTwoWithSpare) {
 	const int sendCount = 2;
@@ -189,16 +189,16 @@ TEST_F(NiceMPItests, scatterTwoWithSpare) {
 	const std::vector<MyStruct> scattered = mpiWorld().scatter(sourceIndex,secrets,sendCount);
 	ASSERT_EQ(sendCount,scattered.size());
 	for(auto&& i: {0,1}) {
-		expectNear(createStructForRank(sendCount*mpiWorld().rank()+i), scattered.at(i), defaultTolerance);
+		expectNear(createMyStructForRank(sendCount*mpiWorld().rank()+i), scattered.at(i), defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, gather) {
-	const std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex, createStructForRank(mpiWorld().rank()) );
+	const std::vector<MyStruct> gathered = mpiWorld().gather(sourceIndex, createMyStructForRank(mpiWorld().rank()) );
 	if(mpiWorld().rank()==sourceIndex) testGather(gathered);
 	else EXPECT_EQ(0,gathered.size());
 }
 TEST_F(NiceMPItests, allGather) {
-	const MyStruct myData = createStructForRank(mpiWorld().rank());
+	const MyStruct myData = createMyStructForRank(mpiWorld().rank());
 	testGather(mpiWorld().allGather(myData));
 }
 TEST_F(NiceMPItests, varyingScatterNothingSent) {
@@ -210,7 +210,7 @@ TEST_F(NiceMPItests, varyingScatterOneEach) {
 	const std::vector<int> sendCounts(mpiWorld().size(),1);
 	const std::vector<MyStruct> scattered = mpiWorld().varyingScatter(sourceIndex,defaultSecrets,sendCounts);
 	ASSERT_EQ(sendCounts.at(0),scattered.size());
-	expectNear(createStructForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
+	expectNear(createMyStructForRank(mpiWorld().rank()), scattered.at(0), defaultTolerance);
 }
 TEST_F(NiceMPItests, varyingScatterHalfToTheSame) {
 	std::vector<int> sendCounts(mpiWorld().size());
@@ -223,7 +223,7 @@ TEST_F(NiceMPItests, varyingScatterHalfToTheSame) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ASSERT_EQ(sendCounts[destinationIndex],scattered.size());
 		for(unsigned i = 0; i < scattered.size(); ++i) {
-			expectNear(createStructForRank(displacements[destinationIndex] + i), scattered[i], defaultTolerance);
+			expectNear(createMyStructForRank(displacements[destinationIndex] + i), scattered[i], defaultTolerance);
 		}
 	}
 	else {
