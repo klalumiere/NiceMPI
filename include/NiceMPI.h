@@ -145,6 +145,21 @@ public:
 		handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator));
 	}
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	std::vector<Type> varyingAllGather(const std::vector<Type>& data, const std::vector<int>& receiveCounts,
+		const std::vector<int>& displacements = {})
+	{
+		std::vector<Type> result(sum(receiveCounts));
+		std::vector<int> scaledReceiveCounts(receiveCounts);
+		for(auto&& x: scaledReceiveCounts) x *= sizeof(Type);
+		const std::vector<int> scaledDisplacements = displacements.empty() ?
+			createDefaultDisplacements(scaledReceiveCounts) :
+			createScaledDisplacements<Type>(displacements);
+
+		handleError(MPI_Allgatherv(data.data(), data.size()*sizeof(Type), MPI_UNSIGNED_CHAR, result.data(),
+			scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, mpiCommunicator));
+		return result;
+	}
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> varyingGather(int source, const std::vector<Type>& data, const std::vector<int>& receiveCounts,
 		const std::vector<int>& displacements = {})
 	{

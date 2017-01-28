@@ -103,6 +103,11 @@ std::vector<MyStruct> gatheredv = mpiWorld().varyingGather(sourceIndex,vecToSend
 	receiveCounts); // Default displacements used
 std::vector<MyStruct> gatheredvTwo = mpiWorld().varyingGather(sourceIndex,vecToSend,
 	receiveCounts,displacements);
+
+std::vector<MyStruct> allGatheredv = mpiWorld().varyingAllGather(vecToSend,
+	receiveCounts); // Default displacements used
+std::vector<MyStruct> allGatheredvTwo = mpiWorld().varyingAllGather(vecToSend,
+	receiveCounts,displacements);
 ```
 
 # References
