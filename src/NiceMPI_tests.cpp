@@ -118,7 +118,7 @@ TEST_F(NiceMPItests, split) {
 	const Communicator splitted = splitEven();
 
 	int expectedSize = 0;
-	if(maxWolrdSize % 2 == 0) expectedSize = std::max(world.size()/2,1);
+	if(maxWorldSize % 2 == 0) expectedSize = std::max(world.size()/2,1);
 	else if(world.rank() % 2 == 0) expectedSize = world.size()/2 + 1;
 	else expectedSize = world.size()/2;
 

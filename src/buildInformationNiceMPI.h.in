@@ -25,7 +25,7 @@ SOFTWARE. */
 
 namespace NiceMPI {
 
-constexpr int maxWolrdSize = @CORES_NUMBER@;
+constexpr int maxWorldSize = @CORES_NUMBER@; // Used in the tests
 
 } // NiceMPi
 
