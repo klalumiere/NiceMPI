@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(msg "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used)")
+    set(msg "${msg} Debug Release RelWithDebInfo MinSizeRel.")
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING ${msg} FORCE)
 endif()
-message("-- Build type is ${CMAKE_BUILD_TYPE}")
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 project(NiceMPI LANGUAGES CXX)
 

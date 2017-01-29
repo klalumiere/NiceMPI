@@ -24,112 +24,9 @@ SOFTWARE. */
 #define NICEMPI_HPP
 
 #include <cassert>
-#include <exception> // std::terminate
-#include <string> // std::to_string
-#include <utility> // std::move
+#include "NiceMPIexception.h" // handleError
 
 namespace NiceMPI {
-
-inline NiceMPIexception::NiceMPIexception(int error)
-: std::runtime_error("Error code " + std::to_string(error) + " in MPI."), error(error)
-{}
-
-
-
-inline MPI_RAII::MPI_RAII(int argc, char* argv[]) {
-	int error = MPI_Init(&argc, &argv);
-	if(error != MPI_SUCCESS) throw NiceMPIexception{error};
-}
-inline MPI_RAII::~MPI_RAII() {
-	int error = MPI_Finalize();
-	if(error != MPI_SUCCESS) std::terminate();
-}
-
-/** \brief Implements a MPI communicator handle that owns the MPI_Comm. */
-class OwnedCommunicator: public MPIcommunicatorHandleImpl {
-public:
-	/** \brief Creates a communicator handle congruent (but not equal) to rhs. */
-	OwnedCommunicator(MPI_Comm rhs) {
-		handleError(MPI_Comm_dup(rhs,&mpiCommunicator));
-	}
-	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
-	OwnedCommunicator(const OwnedCommunicator&) = delete;
-	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
-	OwnedCommunicator(OwnedCommunicator&&) = delete;
-	/** \brief Destroys the underlying MPI communicator. */
-	~OwnedCommunicator() {
-		int error = MPI_Comm_free(&mpiCommunicator);
-		if(error != MPI_SUCCESS) std::terminate();
-	}
-	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
-	OwnedCommunicator& operator=(const OwnedCommunicator&) = delete;
-	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
-	OwnedCommunicator& operator=(OwnedCommunicator&&) = delete;
-	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
-		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator));
-	}
-	MPI_Comm get() const override {
-		return mpiCommunicator;
-	}
-	MPI_Comm get() override {
-		return mpiCommunicator;
-	}
-
-private:
-	/** \brief Underlying MPI implementation of this handle. */
-	MPI_Comm mpiCommunicator;	
-};
-
-/** \brief Implements a MPI communicator handle that is only a proxy for the MPI_Comm. */
-class ProxyCommunicator: public MPIcommunicatorHandleImpl {
-public:
-	/** \brief Creates a communicator handle equal to rhs. */
-	ProxyCommunicator(MPI_Comm rhs): mpiCommunicator(rhs)
-	{}
-	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
-		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator)); // Can't copy proxy
-	}
-	MPI_Comm get() const override {
-		return mpiCommunicator;
-	}
-	MPI_Comm get() override {
-		return mpiCommunicator;
-	}
-
-private:
-	/** \brief Underlying MPI implementation of this handle. */
-	MPI_Comm mpiCommunicator;
-};
-
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm mpiCommunicator)
-: impl(new OwnedCommunicator(mpiCommunicator))
-{}
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm* mpiCommunicator)
-: impl( new ProxyCommunicator(*mpiCommunicator) )
-{}
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs) {
-	impl = rhs.impl->clone();
-}
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs) {
-	impl = std::move(rhs.impl);
-}
-inline MPIcommunicatorHandle::~MPIcommunicatorHandle() = default;
-inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(const MPIcommunicatorHandle& rhs) {
-	impl = rhs.impl->clone();
-	return *this;
-}
-inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(MPIcommunicatorHandle&& rhs) {
-	impl = std::move(rhs.impl);
-	return *this;
-}
-inline MPI_Comm MPIcommunicatorHandle::get() const {
-	return impl->get();
-}
-inline MPI_Comm MPIcommunicatorHandle::get() {
-	return impl->get();
-}
-
-
 
 inline Communicator::Communicator(): handle(MPI_COMM_WORLD)
 {}
@@ -291,12 +188,6 @@ inline std::vector<Type> Communicator::varyingScatterImpl(int source, const std:
 	handleError(MPI_Scatterv(toSend.data(), scaledSendCounts.data(), displacements.data(), MPI_UNSIGNED_CHAR, 
 		result.data(), scaledSendCounts[rank()], MPI_UNSIGNED_CHAR, source, handle.get() ));
 	return result;
-}
-
-
-
-inline void handleError(int error) {
-	if(error != MPI_SUCCESS) throw NiceMPIexception{error};
 }
 
 } // NiceMPi

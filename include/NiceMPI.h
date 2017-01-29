@@ -23,10 +23,12 @@ SOFTWARE. */
 #ifndef NICEMPI_H
 #define NICEMPI_H
 
-#include <memory> // std::unique_ptr
-#include <stdexcept> // std::runtime_error
 #include <type_traits> // std::is_pod, std::enable_if
-#include <mpi.h>
+#include <vector>
+#include <mpi.h> // MPI_Comm
+#include "MPI_RAII.h" // for convenience
+#include "NiceMPIexception.h" // for convenience
+#include "private/MPIcommunicatorHandle.h"
 
 #define UNUSED(x) ((void)x)
 
@@ -34,70 +36,6 @@ SOFTWARE. */
 namespace NiceMPI {
 
 class Communicator &mpiWorld(); // Forward declaration
-
-/** \brief Every exceptions inherit from this class. */
-class NiceMPIexception: public std::runtime_error {
-public:
-	/** \brief Create the exception with the error code \p error. */
-	NiceMPIexception(int error);
-
-	/** \brief Exception error code. */
-	const int error;
-};
-
-/** \brief Initialize and finalize MPI using
-	[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). */
-struct MPI_RAII {
-	/** \brief Initializes MPI. */
-	MPI_RAII(int argc, char* argv[]);
-	/** \brief Finalizes MPI. */
-	~MPI_RAII();
-};
-
-/** \brief Interface of an implementation of a MPIcommunicatorHandle. */
-class MPIcommunicatorHandleImpl {
-public:
-	/** \brief This class is an interface, hence, virtual destructor is requierd. */
-	virtual ~MPIcommunicatorHandleImpl()
-	{}
-	/** \brief Returns a copy of this object. */
-	virtual std::unique_ptr<MPIcommunicatorHandleImpl> clone() const = 0;
-	/** \brief Returns the underlying MPI_Comm implementation. */
-	virtual MPI_Comm get() const = 0;
-	/** \brief Returns the underlying MPI_Comm implementation. */
-	virtual MPI_Comm get() = 0;
-};
-
-/** \brief Handles the construction/destruction of a MPI communicator. Implements the
-	[rule of zero](http://en.cppreference.com/w/cpp/language/rule_of_three) for the Communicator class. */
-class MPIcommunicatorHandle {
-public:
-	/** \brief Creates a handle that contains a communicator congruent (but not equal) to mpiCommunicator. */
-	MPIcommunicatorHandle(MPI_Comm mpiCommunicator);
-	/** \brief Creates a handle that contains a communicator equals to \p mpiCommunicator. Note that, when \p this
-  handle will be destroyed, the memory of \p mpiCommunicator will be freed, i.e. \p this
-  handle takes the ownership of \p mpiCommunicator.*/
-	MPIcommunicatorHandle(MPI_Comm* mpiCommunicator);
-	/** \brief Copies the handle \p rhs. */
-	MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs);
-	/** \brief Moves the handle \p rhs. */
-	MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs);
-	/** \brief Destroys the handle \p rhs. Only there because of the
-		[rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
-	~MPIcommunicatorHandle();
-	/** \brief Assigns \p this handle the handle \p rhs. */
-	MPIcommunicatorHandle& operator=(const MPIcommunicatorHandle& rhs);
-	/** \brief Moves the handle \p rhs and assigns it to \p this handle.  */
-	MPIcommunicatorHandle& operator=(MPIcommunicatorHandle&& rhs);
-	/** \brief Returns the underlying MPI_Comm implementation. */
-	MPI_Comm get() const;
-	/** \brief Returns the underlying MPI_Comm implementation. */
-	MPI_Comm get();
-
-private:
-	/** \brief Implementation of this handle. */
-	std::unique_ptr<MPIcommunicatorHandleImpl> impl;
-};
 
 /** \brief Represents a MPI communitator. */
 class Communicator {
@@ -174,9 +112,7 @@ public:
 	}
 
 private:
-	/** \brief Creates a communicator equals to \p mpiCommunicatorRhs. Note that, when \p this communicator will be
-  destroyed, the memory of \p mpiCommunicatorRhs will be freed, i.e. \p this communicator takes the ownership
-  of \p mpiCommunicatorRhs.*/
+	/** \brief Creates a proxy communicator equals to \p mpiCommunicatorRhs. */
 	Communicator(MPI_Comm* mpiCommunicatorRhs);
 	/** \brief Returns a displacement vector that corresponds to the \p sendCounts[i] data placed sequentially. */
 	static std::vector<int> createDefaultDisplacements(const std::vector<int>& sendCounts);
@@ -194,11 +130,8 @@ private:
 	MPIcommunicatorHandle handle;
 };
 
-/** \brief Turns MPI \p error in \p NiceMPIexception. */
-void handleError(int error);
-
 } // NiceMPi
 
-#include "NiceMPI.hpp"
+#include "private/NiceMPI.hpp"
 
 #endif  /* NICEMPI_H */
