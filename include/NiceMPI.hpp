@@ -26,6 +26,7 @@ SOFTWARE. */
 #include <cassert>
 #include <exception> // std::terminate
 #include <string> // std::to_string
+#include <utility> // std::move
 
 namespace NiceMPI {
 
@@ -44,55 +45,115 @@ inline MPI_RAII::~MPI_RAII() {
 	if(error != MPI_SUCCESS) std::terminate();
 }
 
+/** \brief Implements a MPI communicator handle that owns the MPI_Comm. */
+class OwnedCommunicator: public MPIcommunicatorHandleImpl {
+public:
+	/** \brief Creates a communicator handle congruent (but not equal) to rhs. */
+	OwnedCommunicator(MPI_Comm rhs) {
+		handleError(MPI_Comm_dup(rhs,&mpiCommunicator));
+	}
+	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	OwnedCommunicator(const OwnedCommunicator&) = delete;
+	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	OwnedCommunicator(OwnedCommunicator&&) = delete;
+	/** \brief Destroys the underlying MPI communicator. */
+	~OwnedCommunicator() {
+		int error = MPI_Comm_free(&mpiCommunicator);
+		if(error != MPI_SUCCESS) std::terminate();
+	}
+	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	OwnedCommunicator& operator=(const OwnedCommunicator&) = delete;
+	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	OwnedCommunicator& operator=(OwnedCommunicator&&) = delete;
+	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
+		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator));
+	}
+	MPI_Comm get() const override {
+		return mpiCommunicator;
+	}
+	MPI_Comm get() override {
+		return mpiCommunicator;
+	}
 
+private:
+	/** \brief Underlying MPI implementation of this handle. */
+	MPI_Comm mpiCommunicator;	
+};
 
-inline Communicator::Communicator() {
-	handleError(MPI_Comm_dup(MPI_COMM_WORLD, &mpiCommunicator));
+/** \brief Implements a MPI communicator handle that is only a proxy for the MPI_Comm. */
+class ProxyCommunicator: public MPIcommunicatorHandleImpl {
+public:
+	/** \brief Creates a communicator handle equal to rhs. */
+	ProxyCommunicator(MPI_Comm rhs): mpiCommunicator(rhs)
+	{}
+	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
+		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator)); // Can't copy proxy
+	}
+	MPI_Comm get() const override {
+		return mpiCommunicator;
+	}
+	MPI_Comm get() override {
+		return mpiCommunicator;
+	}
+
+private:
+	/** \brief Underlying MPI implementation of this handle. */
+	MPI_Comm mpiCommunicator;
+};
+
+inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm mpiCommunicator)
+: impl(new OwnedCommunicator(mpiCommunicator))
+{}
+inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm* mpiCommunicator)
+: impl( new ProxyCommunicator(*mpiCommunicator) )
+{}
+inline MPIcommunicatorHandle::MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs) {
+	impl = rhs.impl->clone();
 }
-
-inline Communicator::Communicator(const Communicator& rhs) {
-	handleError(MPI_Comm_dup(rhs.mpiCommunicator, &mpiCommunicator));
+inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs) {
+	impl = std::move(rhs.impl);
 }
-
-inline Communicator::Communicator(Communicator&& rhs): Communicator() {
-	std::swap(mpiCommunicator,rhs.mpiCommunicator);
-}
-
-inline Communicator::~Communicator() {
-	int error = MPI_Comm_free(&mpiCommunicator);
-	if(error != MPI_SUCCESS) std::terminate();
-}
-
-inline Communicator& Communicator::operator=(const Communicator& rhs) {
-	if(this != &rhs) handleError(MPI_Comm_dup(rhs.mpiCommunicator, &mpiCommunicator));
+inline MPIcommunicatorHandle::~MPIcommunicatorHandle() = default;
+inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(const MPIcommunicatorHandle& rhs) {
+	impl = rhs.impl->clone();
 	return *this;
 }
-
-inline Communicator& Communicator::operator=(Communicator&& rhs) {
-	std::swap(mpiCommunicator,rhs.mpiCommunicator);
+inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(MPIcommunicatorHandle&& rhs) {
+	impl = std::move(rhs.impl);
 	return *this;
 }
+inline MPI_Comm MPIcommunicatorHandle::get() const {
+	return impl->get();
+}
+inline MPI_Comm MPIcommunicatorHandle::get() {
+	return impl->get();
+}
+
+
+
+inline Communicator::Communicator(): handle(MPI_COMM_WORLD)
+{}
 
 inline MPI_Comm Communicator::get() const {
-	return mpiCommunicator;
+	return handle.get() ;
 }
 
 inline int Communicator::rank() const {
 	int rank;
-	handleError(MPI_Comm_rank(mpiCommunicator, &rank));
+	handleError(MPI_Comm_rank(handle.get() , &rank));
 	return rank;
 }
 
 inline int Communicator::size() const {
 	int size;
-	handleError(MPI_Comm_size(mpiCommunicator, &size));
+	handleError(MPI_Comm_size(handle.get() , &size));
 	return size;
 }
 
 inline Communicator Communicator::split(int color, int key) const {
 	MPI_Comm splitted;
-	handleError(MPI_Comm_split(mpiCommunicator,color,key,&splitted));
-	return Communicator{std::move(splitted)};
+	handleError(MPI_Comm_split(handle.get() ,color,key,&splitted));
+	return Communicator{&splitted};
 }
 
 
@@ -100,13 +161,13 @@ template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::
 inline std::vector<Type> Communicator::allGather(Type data) {
 	std::vector<Type> result(size());
 	handleError(MPI_Allgather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,
-		mpiCommunicator));
+		handle.get() ));
 	return result;
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
 inline Type Communicator::broadcast(int source, Type data) {
-	handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,mpiCommunicator));
+	handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,handle.get() ));
 	return data;
 }
 
@@ -115,14 +176,14 @@ inline std::vector<Type> Communicator::gather(int source, Type data) {
 	std::vector<Type> result;
 	if(rank() == source) result.resize(size());
 	handleError(MPI_Gather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,
-		mpiCommunicator));
+		handle.get() ));
 	return result;
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
 inline Type Communicator::receiveAndBlock(int source, int tag) {
 	Type data;
-	handleError(MPI_Recv(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,mpiCommunicator,MPI_STATUS_IGNORE));
+	handleError(MPI_Recv(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get() ,MPI_STATUS_IGNORE));
 	return data;
 }
 
@@ -132,13 +193,13 @@ inline std::vector<Type> Communicator::scatter(int source, const std::vector<Typ
 	assert(rank() != source or enoughDataToSend); UNUSED(enoughDataToSend);
 	std::vector<Type> result(sendCount);
 	handleError(MPI_Scatter(toSend.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, 
-		result.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, source, mpiCommunicator));
+		result.data(), sendCount*sizeof(Type), MPI_UNSIGNED_CHAR, source, handle.get() ));
 	return result;
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
 inline void Communicator::sendAndBlock(Type data, int destination, int tag) {
-	handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,mpiCommunicator));
+	handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get() ));
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
@@ -153,7 +214,7 @@ inline std::vector<Type> Communicator::varyingAllGather(const std::vector<Type>&
 		createScaledDisplacements<Type>(displacements);
 
 	handleError(MPI_Allgatherv(data.data(), data.size()*sizeof(Type), MPI_UNSIGNED_CHAR, result.data(),
-		scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, mpiCommunicator));
+		scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, handle.get() ));
 	return result;
 }
 
@@ -172,7 +233,7 @@ inline std::vector<Type> Communicator::varyingGather(int source, const std::vect
 		else scaledDisplacements = createScaledDisplacements<Type>(displacements);
 	}
 	handleError(MPI_Gatherv(data.data(), data.size()*sizeof(Type), MPI_UNSIGNED_CHAR, result.data(),
-		scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, source, mpiCommunicator));
+		scaledReceiveCounts.data(), scaledDisplacements.data(), MPI_UNSIGNED_CHAR, source, handle.get() ));
 	return result;
 }
 
@@ -200,9 +261,8 @@ inline std::vector<Type> Communicator::varyingScatter(int source, const std::vec
 }
 
 
-inline Communicator::Communicator(MPI_Comm&& mpiCommunicatorRhs) {
-	mpiCommunicator = mpiCommunicatorRhs;
-}
+inline Communicator::Communicator(MPI_Comm* rhs): handle(rhs)
+{}
 
 inline std::vector<int> Communicator::createDefaultDisplacements(const std::vector<int>& sendCounts) {
 	std::vector<int> displacements(sendCounts.size());
@@ -214,10 +274,6 @@ template<typename Type>
 inline std::vector<int> Communicator::createScaledDisplacements(std::vector<int> displacements) {
 	for(auto&& x: displacements) x *= sizeof(Type);
 	return displacements;
-}
-
-inline void Communicator::handleError(int error) {
-	if(error != MPI_SUCCESS) throw NiceMPIexception{error};
 }
 
 inline int Communicator::sum(const std::vector<int>& data) {
@@ -233,8 +289,14 @@ inline std::vector<Type> Communicator::varyingScatterImpl(int source, const std:
 {
 	std::vector<Type> result(sendCounts[rank()]);
 	handleError(MPI_Scatterv(toSend.data(), scaledSendCounts.data(), displacements.data(), MPI_UNSIGNED_CHAR, 
-		result.data(), scaledSendCounts[rank()], MPI_UNSIGNED_CHAR, source, mpiCommunicator));
+		result.data(), scaledSendCounts[rank()], MPI_UNSIGNED_CHAR, source, handle.get() ));
 	return result;
+}
+
+
+
+inline void handleError(int error) {
+	if(error != MPI_SUCCESS) throw NiceMPIexception{error};
 }
 
 } // NiceMPi

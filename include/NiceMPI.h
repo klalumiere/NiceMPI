@@ -23,6 +23,7 @@ SOFTWARE. */
 #ifndef NICEMPI_H
 #define NICEMPI_H
 
+#include <memory> // std::unique_ptr
 #include <stdexcept> // std::runtime_error
 #include <type_traits> // std::is_pod, std::enable_if
 #include <mpi.h>
@@ -44,7 +45,7 @@ public:
 	const int error;
 };
 
-/** \brief Initialize and finalize MPI using 
+/** \brief Initialize and finalize MPI using
 	[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). */
 struct MPI_RAII {
 	/** \brief Initializes MPI. */
@@ -53,21 +54,56 @@ struct MPI_RAII {
 	~MPI_RAII();
 };
 
+/** \brief Interface of an implementation of a MPIcommunicatorHandle. */
+class MPIcommunicatorHandleImpl {
+public:
+	/** \brief This class is an interface, hence, virtual destructor is requierd. */
+	virtual ~MPIcommunicatorHandleImpl()
+	{}
+	/** \brief Returns a copy of this object. */
+	virtual std::unique_ptr<MPIcommunicatorHandleImpl> clone() const = 0;
+	/** \brief Returns the underlying MPI_Comm implementation. */
+	virtual MPI_Comm get() const = 0;
+	/** \brief Returns the underlying MPI_Comm implementation. */
+	virtual MPI_Comm get() = 0;
+};
+
+/** \brief Handles the construction/destruction of a MPI communicator. Implements the
+	[rule of zero](http://en.cppreference.com/w/cpp/language/rule_of_three) for the Communicator class. */
+class MPIcommunicatorHandle {
+public:
+	/** \brief Creates a handle that contains a communicator congruent (but not equal) to mpiCommunicator. */
+	MPIcommunicatorHandle(MPI_Comm mpiCommunicator);
+	/** \brief Creates a handle that contains a communicator equals to \p mpiCommunicator. Note that, when \p this
+  handle will be destroyed, the memory of \p mpiCommunicator will be freed, i.e. \p this
+  handle takes the ownership of \p mpiCommunicator.*/
+	MPIcommunicatorHandle(MPI_Comm* mpiCommunicator);
+	/** \brief Copies the handle \p rhs. */
+	MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs);
+	/** \brief Moves the handle \p rhs. */
+	MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs);
+	/** \brief Destroys the handle \p rhs. Only there because of the
+		[rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	~MPIcommunicatorHandle();
+	/** \brief Assigns \p this handle the handle \p rhs. */
+	MPIcommunicatorHandle& operator=(const MPIcommunicatorHandle& rhs);
+	/** \brief Moves the handle \p rhs and assigns it to \p this handle.  */
+	MPIcommunicatorHandle& operator=(MPIcommunicatorHandle&& rhs);
+	/** \brief Returns the underlying MPI_Comm implementation. */
+	MPI_Comm get() const;
+	/** \brief Returns the underlying MPI_Comm implementation. */
+	MPI_Comm get();
+
+private:
+	/** \brief Implementation of this handle. */
+	std::unique_ptr<MPIcommunicatorHandleImpl> impl;
+};
+
 /** \brief Represents a MPI communitator. */
 class Communicator {
 public:
 	/** \brief Creates a communicator congruent (but not equal) to MPI_COMM_WORLD. */
 	Communicator();
-	/** \brief Copies the communicator \p rhs. */
-	Communicator(const Communicator& rhs);
-	/** \brief Moves the communicator \p rhs. */
-	Communicator(Communicator&& rhs);
-	/** \brief Destroys the communicator \p rhs. */
-	~Communicator();
-	/** \brief Assigns \p this communicator the communicator \p rhs. */
-	Communicator& operator=(const Communicator& rhs);
-	/** \brief Moves the communicator \p rhs and assigns it to \p this communicator.  */
-	Communicator& operator=(Communicator&& rhs);
 
 	/** \brief Returns the MPI communicator associated to \p this. This method breaks encapsulation, but it is
   provided in order to facilitate the interface with MPI functions not implemented here. Minimize its use. */
@@ -132,22 +168,21 @@ public:
 
 	/** \brief Returns a communicator equals to \p MPI_COMM_WORLD. */
 	friend Communicator &mpiWorld() {
-		thread_local Communicator* neverDestructedWorld = new Communicator{MPI_Comm{MPI_COMM_WORLD}};
-		return *neverDestructedWorld;
+		thread_local MPI_Comm notRvalue = MPI_COMM_WORLD;
+		thread_local Communicator proxy(&notRvalue);
+		return proxy;
 	}
 
 private:
 	/** \brief Creates a communicator equals to \p mpiCommunicatorRhs. Note that, when \p this communicator will be
   destroyed, the memory of \p mpiCommunicatorRhs will be freed, i.e. \p this communicator takes the ownership
   of \p mpiCommunicatorRhs.*/
-	Communicator(MPI_Comm&& mpiCommunicatorRhs);
+	Communicator(MPI_Comm* mpiCommunicatorRhs);
 	/** \brief Returns a displacement vector that corresponds to the \p sendCounts[i] data placed sequentially. */
 	static std::vector<int> createDefaultDisplacements(const std::vector<int>& sendCounts);
 	/** \brief Returns the \p displacements scaled by the size of \p Type.*/
 	template<typename Type>
 	static std::vector<int> createScaledDisplacements(std::vector<int> displacements);
-	/** \brief Turns MPI \p error in \p NiceMPIexception. */
-	static void handleError(int error);
 	/** \brief Returns the sum of the \p data. */
 	static int sum(const std::vector<int>& data);
 	/** \brief Implements \p varyingScatter(). */
@@ -155,10 +190,12 @@ private:
 	std::vector<Type> varyingScatterImpl(int source, const std::vector<Type>& toSend,const std::vector<int>& sendCounts,
 		const std::vector<int>& scaledSendCounts, const std::vector<int>& displacements);
 
-	/** \brief Underlying MPI implementation of this \p communicator. */
-	MPI_Comm mpiCommunicator;
+	/** \brief Handles the life of the MPI implementation of \p this communicator. */
+	MPIcommunicatorHandle handle;
 };
 
+/** \brief Turns MPI \p error in \p NiceMPIexception. */
+void handleError(int error);
 
 } // NiceMPi
 
