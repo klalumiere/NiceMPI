@@ -44,7 +44,8 @@ public:
 	const int error;
 };
 
-/** \brief Initialize and finalize MPI using RAII. */
+/** \brief Initialize and finalize MPI using 
+	[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). */
 struct MPI_RAII {
 	/** \brief Initializes MPI. */
 	MPI_RAII(int argc, char* argv[]);

@@ -110,6 +110,10 @@ std::vector<MyStruct> allGatheredvTwo = mpiWorld().varyingAllGather(vecToSend,
 	receiveCounts,displacements);
 ```
 
+# Documentation
+
+Documentation of this project can be built using [doxygen](http://www.doxygen.org).
+
 # References
 
 - [An excellent MPI tutorial](http://mpitutorial.com/tutorials/).
