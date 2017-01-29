@@ -36,12 +36,14 @@ SOFTWARE. */
 namespace NiceMPI {
 
 class Communicator &mpiWorld(); // Forward declaration
+class Communicator &mpiSelf(); // Forward declaration
+class Communicator createProxy(MPI_Comm mpiCommunicator); // Forward declaration
 
 /** \brief Represents a MPI communitator. */
 class Communicator {
 public:
 	/** \brief Creates a communicator congruent (but not equal) to MPI_COMM_WORLD. */
-	Communicator();
+	Communicator(MPI_Comm mpiCommunicator = MPI_COMM_WORLD);
 
 	/** \brief Returns the MPI communicator associated to \p this. This method breaks encapsulation, but it is
   provided in order to facilitate the interface with MPI functions not implemented here. Minimize its use. */
@@ -104,15 +106,25 @@ public:
 		const std::vector<int>& displacements = {});
 
 
-	/** \brief Returns a communicator equals to \p MPI_COMM_WORLD. */
+	/** \brief Returns a communicator identical to \p MPI_COMM_WORLD. */
 	friend Communicator &mpiWorld() {
 		thread_local MPI_Comm notRvalue = MPI_COMM_WORLD;
 		thread_local Communicator proxy(&notRvalue);
 		return proxy;
 	}
+	/** \brief Returns a communicator identical to \p MPI_COMM_SELF. */
+	friend Communicator &mpiSelf() {
+		thread_local MPI_Comm notRvalue = MPI_COMM_SELF;
+		thread_local Communicator proxy(&notRvalue);
+		return proxy;
+	}
+	/** \brief Returns a proxy communicator identical to \p mpiCommunicator. */
+	friend Communicator createProxy(MPI_Comm mpiCommunicator) {
+		return Communicator{&mpiCommunicator};
+	}
 
 private:
-	/** \brief Creates a proxy communicator equals to \p mpiCommunicatorRhs. */
+	/** \brief Creates a proxy communicator identical to \p mpiCommunicatorRhs. */
 	Communicator(MPI_Comm* mpiCommunicatorRhs);
 	/** \brief Returns a displacement vector that corresponds to the \p sendCounts[i] data placed sequentially. */
 	static std::vector<int> createDefaultDisplacements(const std::vector<int>& sendCounts);

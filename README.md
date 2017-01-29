@@ -110,6 +110,38 @@ std::vector<MyStruct> allGatheredvTwo = mpiWorld().varyingAllGather(vecToSend,
 	receiveCounts,displacements);
 ```
 
+# Communicator
+
+## Identical v.s. Congruent communicators
+
+When compared, MPI communicators can be identical or congruent. One can think of two identical MPI communicators as two pointers pointing on the same object. On the other hand, two congruent (but *not* identical) MPI communicators can be seen as two distinct objects that contain the same information (this analogy is a bit misleading since two congruent MPI communicators usually have different context, but it is enough to understand what is below).
+
+The lines of codes
+
+```c++
+MPI_Comm mpiX;
+Communicator x(mpiX);
+```
+
+create a `Communicator` that contains an MPI implementation which is **congruent** (and *not* identical) to `mpiX`. The MPI implementation for the communicator `x` has its own space in memory, and this memory is freed when `x` is destroyed. Of course, copy operations imply congruence, but not identity,
+
+```c++
+Communicator congruentToX(x);
+```
+
+It is possible to obtain `Communicator`s that have **identical** MPI implementation to `MPI_COMM_WORLD` and `MPI_COMM_SELF` by using the functions `mpiWolrd()` and `mpiSelf()`. Moreover, the function `createProxy(mpiX)` returns a `Communicator` that has an **identical** MPI implementation to `mpiX`. This property is preserved when the proxy is moved
+
+```c++
+Communicator proxy = createProxy(mpiX);
+Communicator identicalToProxy(std::move(proxy));
+```
+
+However, of course, if you copy a proxy, a new MPI implementation is created, as always when a copy is made
+
+```c++
+Communicator congruentToProxy(identicalToProxy);
+```
+
 # Documentation
 
 Documentation of this project can be built using [doxygen](http://www.doxygen.org).

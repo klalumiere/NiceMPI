@@ -34,9 +34,9 @@ class MPIcommunicatorHandleImpl;
 	[rule of zero](http://en.cppreference.com/w/cpp/language/rule_of_three) for the Communicator class. */
 class MPIcommunicatorHandle {
 public:
-	/** \brief Creates a handle that contains a communicator congruent (but not equal) to mpiCommunicator. */
+	/** \brief Creates a handle that contains a communicator congruent (but not identical) to mpiCommunicator. */
 	MPIcommunicatorHandle(MPI_Comm mpiCommunicator);
-	/** \brief Creates a handle that contains a proxy communicator equals to \p mpiCommunicator.*/
+	/** \brief Creates a handle that contains a proxy communicator identical to \p mpiCommunicator.*/
 	MPIcommunicatorHandle(MPI_Comm* mpiCommunicator);
 	/** \brief Copies the handle \p rhs. */
 	MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs);

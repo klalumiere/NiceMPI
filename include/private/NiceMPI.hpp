@@ -28,7 +28,7 @@ SOFTWARE. */
 
 namespace NiceMPI {
 
-inline Communicator::Communicator(): handle(MPI_COMM_WORLD)
+inline Communicator::Communicator(MPI_Comm mpiCommunicator): handle(mpiCommunicator)
 {}
 
 inline MPI_Comm Communicator::get() const {
@@ -158,7 +158,7 @@ inline std::vector<Type> Communicator::varyingScatter(int source, const std::vec
 }
 
 
-inline Communicator::Communicator(MPI_Comm* rhs): handle(rhs)
+inline Communicator::Communicator(MPI_Comm* mpiCommunicatorRhs): handle(mpiCommunicatorRhs)
 {}
 
 inline std::vector<int> Communicator::createDefaultDisplacements(const std::vector<int>& sendCounts) {

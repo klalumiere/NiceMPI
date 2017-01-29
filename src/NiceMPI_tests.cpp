@@ -41,7 +41,7 @@ public:
 		MPI_Comm_compare(a, b, &result);
 		return result == MPI_CONGRUENT;
 	}
-	bool areEquals(const MPI_Comm &a, const MPI_Comm &b) const {
+	bool areIdentical(const MPI_Comm &a, const MPI_Comm &b) const {
 		int result;
 		MPI_Comm_compare(a, b, &result);
 		return result == MPI_IDENT;
@@ -91,7 +91,12 @@ TEST_F(NiceMPItests, NiceMPIexceptionExist) {
 }
 TEST_F(NiceMPItests, newCommunicatorIsWorldCongruent) {
 	EXPECT_TRUE( areCongruent(MPI_COMM_WORLD,world.get()) );
-	EXPECT_FALSE( areEquals(MPI_COMM_WORLD,world.get()) );
+	EXPECT_FALSE( areIdentical(MPI_COMM_WORLD,world.get()) );
+}
+TEST_F(NiceMPItests, newCommunicatorIsSelfCongruent) {
+	Communicator x(MPI_COMM_SELF);
+	EXPECT_TRUE( areCongruent(MPI_COMM_SELF, x.get()) );
+	EXPECT_FALSE( areIdentical(MPI_COMM_SELF, x.get()) );
 }
 TEST_F(NiceMPItests, Copy) {
 	const Communicator copy{world};
@@ -101,7 +106,7 @@ TEST_F(NiceMPItests, Move) {
 	Communicator toMove;
 	MPI_Comm lhs = toMove.get();
 	const Communicator movedInto{std::move(toMove)};
-	EXPECT_TRUE( areEquals(lhs,movedInto.get()) );
+	EXPECT_TRUE( areIdentical(lhs,movedInto.get()) );
 }
 
 
@@ -140,12 +145,35 @@ TEST_F(NiceMPItests, MoveAssignment) {
 	Communicator splitted = splitEven();
 	MPI_Comm lhs = splitted.get();
 	Communicator worldCopy;
-	EXPECT_TRUE( areEquals(lhs,(worldCopy = std::move(splitted)).get()) );
+	EXPECT_TRUE( areIdentical(lhs,(worldCopy = std::move(splitted)).get()) );
 }
 TEST_F(NiceMPItests, mpiWorld) {
-	EXPECT_TRUE( areEquals(MPI_COMM_WORLD,mpiWorld().get()) );
-	EXPECT_TRUE( areEquals(mpiWorld().get(),mpiWorld().get()) );
+	EXPECT_TRUE( areIdentical(MPI_COMM_WORLD,mpiWorld().get()) );
+	EXPECT_TRUE( areIdentical(mpiWorld().get(),mpiWorld().get()) );
 	EXPECT_TRUE( areCongruent(world.get(),mpiWorld().get()) );
+}
+TEST_F(NiceMPItests, mpiSelf) {
+	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,mpiSelf().get()) );
+	EXPECT_TRUE( areIdentical(mpiSelf().get(),mpiSelf().get()) );
+}
+TEST_F(NiceMPItests, createProxy) {
+	EXPECT_TRUE( areIdentical(MPI_COMM_WORLD,createProxy(MPI_COMM_WORLD).get()) );
+}
+TEST_F(NiceMPItests, createProxyStored) {
+	const Communicator proxy = createProxy(MPI_COMM_SELF);
+	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,proxy.get()) );
+}
+TEST_F(NiceMPItests, copiedProxiesAreNotProxies) {
+	const Communicator proxy = createProxy(MPI_COMM_SELF);
+	const Communicator copy(proxy);
+	EXPECT_FALSE( areIdentical(MPI_COMM_SELF,copy.get()) );
+	EXPECT_TRUE( areCongruent(MPI_COMM_SELF,copy.get()) );
+}
+TEST_F(NiceMPItests, movedProxiesAreProxies) {
+	Communicator proxy = createProxy(MPI_COMM_SELF);
+	const Communicator moved(std::move(proxy));
+	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,moved.get()) );
+	EXPECT_FALSE( areCongruent(MPI_COMM_SELF,moved.get()) );
 }
 
 

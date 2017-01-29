@@ -46,7 +46,7 @@ public:
 /** \brief Implements a MPI communicator handle that owns the MPI_Comm. */
 class OwnedCommunicator: public MPIcommunicatorHandleImpl {
 public:
-	/** \brief Creates a communicator handle congruent (but not equal) to rhs. */
+	/** \brief Creates a communicator handle congruent (but not identical) to rhs. */
 	OwnedCommunicator(MPI_Comm rhs) {
 		handleError(MPI_Comm_dup(rhs,&mpiCommunicator));
 	}
@@ -81,7 +81,7 @@ private:
 /** \brief Implements a MPI communicator handle that is only a proxy for the MPI_Comm. */
 class ProxyCommunicator: public MPIcommunicatorHandleImpl {
 public:
-	/** \brief Creates a communicator handle equal to rhs. */
+	/** \brief Creates a communicator handle identical to rhs. */
 	ProxyCommunicator(MPI_Comm rhs): mpiCommunicator(rhs)
 	{}
 	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
