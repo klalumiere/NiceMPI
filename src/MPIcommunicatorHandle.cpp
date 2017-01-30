@@ -23,6 +23,7 @@ SOFTWARE. */
 #ifndef MPICOMMUNICATORHANDLE_HPP
 #define MPICOMMUNICATORHANDLE_HPP
 
+#include <NiceMPI/private/MPIcommunicatorHandle.h>
 #include <exception> // std::terminate
 #include <utility> // std::move
 #include <NiceMPI/NiceMPIexception.h> // handleError
@@ -99,31 +100,31 @@ private:
 	MPI_Comm mpiCommunicator;
 };
 
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm mpiCommunicator)
+MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm mpiCommunicator)
 : impl(new OwnedCommunicator(mpiCommunicator))
 {}
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm* mpiCommunicator)
+MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm* mpiCommunicator)
 : impl(new ProxyCommunicator(*mpiCommunicator))
 {}
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs) {
+MPIcommunicatorHandle::MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs) {
 	impl = rhs.impl->deepCopy();
 }
-inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs) {
+MPIcommunicatorHandle::MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs) {
 	impl = std::move(rhs.impl);
 }
-inline MPIcommunicatorHandle::~MPIcommunicatorHandle() = default;
-inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(const MPIcommunicatorHandle& rhs) {
+MPIcommunicatorHandle::~MPIcommunicatorHandle() = default;
+MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(const MPIcommunicatorHandle& rhs) {
 	impl = rhs.impl->deepCopy();
 	return *this;
 }
-inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(MPIcommunicatorHandle&& rhs) {
+MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(MPIcommunicatorHandle&& rhs) {
 	impl = std::move(rhs.impl);
 	return *this;
 }
-inline MPI_Comm MPIcommunicatorHandle::get() const {
+MPI_Comm MPIcommunicatorHandle::get() const {
 	return impl->get();
 }
-inline MPI_Comm MPIcommunicatorHandle::get() {
+MPI_Comm MPIcommunicatorHandle::get() {
 	return impl->get();
 }
 

@@ -61,6 +61,4 @@ private:
 
 } // NiceMPi
 
-#include "MPIcommunicatorHandle.hpp"
-
 #endif  /* MPICOMMUNICATORHANDLE_H */

@@ -1,3 +1,17 @@
+if(NOT TARGET NiceMPI)
+    add_library(NiceMPI MPIcommunicatorHandle.cpp)
+    target_include_directories(NiceMPI PUBLIC ${PROJECT_SOURCE_DIR}/include)
+    set_target_properties(NiceMPI PROPERTIES CXX_STANDARD 11)
+    set_target_properties(NiceMPI PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+    set_target_properties(NiceMPI PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+    target_compile_options(NiceMPI PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(NiceMPI PUBLIC ${MPI_CXX_COMPILE_FLAGS})
+
+    string(STRIP "${MPI_CXX_LINK_FLAGS}" StrippedMPIflags)
+    target_link_libraries(NiceMPI PUBLIC "${StrippedMPIflags}")
+    target_link_libraries(NiceMPI PUBLIC ${MPI_CXX_LIBRARIES})
+endif()
+
 if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/src"))
     add_executable(NiceMPIunitTests
         MPIcommunicatorHandle_tests.cpp
@@ -9,12 +23,9 @@ if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR
    
     set_target_properties(NiceMPIunitTests PROPERTIES CXX_STANDARD 11)
     set_target_properties(NiceMPIunitTests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
-    target_compile_options(NiceMPIunitTests PUBLIC -Wall -Wextra -pedantic)
-    target_compile_options(NiceMPIunitTests PUBLIC ${MPI_CXX_COMPILE_FLAGS})
+    target_compile_options(NiceMPIunitTests PRIVATE -Wall -Wextra -pedantic)
     
-    string(STRIP "${MPI_CXX_LINK_FLAGS}" StripMPIflags)
-    target_link_libraries(NiceMPIunitTests PUBLIC "${StripMPIflags}")
-    target_link_libraries(NiceMPIunitTests PUBLIC ${MPI_CXX_LIBRARIES})
+    target_link_libraries(NiceMPIunitTests PUBLIC NiceMPI)
     target_link_libraries(NiceMPIunitTests PUBLIC GTest::GTest)
     add_test(NAME NiceMPIunitTests COMMAND $<TARGET_FILE:NiceMPIunitTests>)
 
