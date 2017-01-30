@@ -1,6 +1,7 @@
 if(NOT TARGET NiceMPI)
     add_library(NiceMPI MPIcommunicatorHandle.cpp)
     target_include_directories(NiceMPI PUBLIC ${PROJECT_SOURCE_DIR}/include)
+    target_include_directories(NiceMPI PUBLIC ${MPI_CXX_INCLUDE_PATH})
     set_target_properties(NiceMPI PROPERTIES CXX_STANDARD 11)
     set_target_properties(NiceMPI PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
     set_target_properties(NiceMPI PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")

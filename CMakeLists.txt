@@ -18,6 +18,4 @@ if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     endif()
 endif()
 
-include_directories(${MPI_CXX_INCLUDE_PATH})
-include_directories(include)
 add_subdirectory(src)
