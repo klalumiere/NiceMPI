@@ -35,8 +35,8 @@ public:
 	/** \brief This class is an interface, hence, virtual destructor is requierd. */
 	virtual ~MPIcommunicatorHandleImpl()
 	{}
-	/** \brief Returns a copy of this object. */
-	virtual std::unique_ptr<MPIcommunicatorHandleImpl> clone() const = 0;
+	/** \brief Returns a deep copy of this object. */
+	virtual std::unique_ptr<MPIcommunicatorHandleImpl> deepCopy() const = 0;
 	/** \brief Returns the underlying MPI_Comm implementation. */
 	virtual MPI_Comm get() const = 0;
 	/** \brief Returns the underlying MPI_Comm implementation. */
@@ -63,7 +63,7 @@ public:
 	OwnedCommunicator& operator=(const OwnedCommunicator&) = delete;
 	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
 	OwnedCommunicator& operator=(OwnedCommunicator&&) = delete;
-	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
+	std::unique_ptr<MPIcommunicatorHandleImpl> deepCopy() const override {
 		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator));
 	}
 	MPI_Comm get() const override {
@@ -84,7 +84,7 @@ public:
 	/** \brief Creates a communicator handle identical to rhs. */
 	ProxyCommunicator(MPI_Comm rhs): mpiCommunicator(rhs)
 	{}
-	std::unique_ptr<MPIcommunicatorHandleImpl> clone() const override {
+	std::unique_ptr<MPIcommunicatorHandleImpl> deepCopy() const override {
 		return std::unique_ptr<MPIcommunicatorHandleImpl>(new OwnedCommunicator(mpiCommunicator)); // Can't copy proxy
 	}
 	MPI_Comm get() const override {
@@ -106,14 +106,14 @@ inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPI_Comm* mpiCommunicator)
 : impl(new ProxyCommunicator(*mpiCommunicator))
 {}
 inline MPIcommunicatorHandle::MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs) {
-	impl = rhs.impl->clone();
+	impl = rhs.impl->deepCopy();
 }
 inline MPIcommunicatorHandle::MPIcommunicatorHandle(MPIcommunicatorHandle&& rhs) {
 	impl = std::move(rhs.impl);
 }
 inline MPIcommunicatorHandle::~MPIcommunicatorHandle() = default;
 inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(const MPIcommunicatorHandle& rhs) {
-	impl = rhs.impl->clone();
+	impl = rhs.impl->deepCopy();
 	return *this;
 }
 inline MPIcommunicatorHandle& MPIcommunicatorHandle::operator=(MPIcommunicatorHandle&& rhs) {
