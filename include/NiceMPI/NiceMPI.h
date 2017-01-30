@@ -26,8 +26,8 @@ SOFTWARE. */
 #include <type_traits> // std::is_pod, std::enable_if
 #include <vector>
 #include <mpi.h> // MPI_Comm
-#include "MPI_RAII.h" // for convenience
-#include "NiceMPIexception.h" // for convenience
+#include <NiceMPI/MPI_RAII.h> // for convenience
+#include <NiceMPI/NiceMPIexception.h> // for convenience
 #include "private/MPIcommunicatorHandle.h"
 
 #define UNUSED(x) ((void)x)
@@ -43,8 +43,7 @@ class Communicator createProxy(MPI_Comm mpiCommunicator); // Forward declaration
 class Communicator {
 public:
 	/** \brief Creates a communicator congruent (but not equal) to MPI_COMM_WORLD. */
-	Communicator(MPI_Comm mpiCommunicator = MPI_COMM_WORLD);
-
+	explicit Communicator(MPI_Comm mpiCommunicator = MPI_COMM_WORLD);
 	/** \brief Returns the MPI communicator associated to \p this. This method breaks encapsulation, but it is
   provided in order to facilitate the interface with MPI functions not implemented here. Minimize its use. */
 	MPI_Comm get() const;
@@ -106,6 +105,10 @@ public:
 		const std::vector<int>& displacements = {});
 
 
+	/** \brief Returns a proxy communicator identical to \p mpiCommunicator. */
+	friend Communicator createProxy(MPI_Comm mpiCommunicator) {
+		return Communicator{&mpiCommunicator};
+	}
 	/** \brief Returns a communicator identical to \p MPI_COMM_WORLD. */
 	friend Communicator &mpiWorld() {
 		thread_local MPI_Comm notRvalue = MPI_COMM_WORLD;
@@ -117,10 +120,6 @@ public:
 		thread_local MPI_Comm notRvalue = MPI_COMM_SELF;
 		thread_local Communicator proxy(&notRvalue);
 		return proxy;
-	}
-	/** \brief Returns a proxy communicator identical to \p mpiCommunicator. */
-	friend Communicator createProxy(MPI_Comm mpiCommunicator) {
-		return Communicator{&mpiCommunicator};
 	}
 
 private:
@@ -141,6 +140,11 @@ private:
 	/** \brief Handles the life of the MPI implementation of \p this communicator. */
 	MPIcommunicatorHandle handle;
 };
+
+/** \brief Returns true if the communicators are congruent. */
+bool areCongruent(const Communicator& a, const Communicator& b);
+/** \brief Returns true if the communicators are identical. */
+bool areIdentical(const Communicator& a, const Communicator& b);
 
 } // NiceMPi
 

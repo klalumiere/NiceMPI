@@ -35,9 +35,9 @@ class MPIcommunicatorHandleImpl;
 class MPIcommunicatorHandle {
 public:
 	/** \brief Creates a handle that contains a communicator congruent (but not identical) to mpiCommunicator. */
-	MPIcommunicatorHandle(MPI_Comm mpiCommunicator);
+	explicit MPIcommunicatorHandle(MPI_Comm mpiCommunicator);
 	/** \brief Creates a handle that contains a proxy communicator identical to \p mpiCommunicator.*/
-	MPIcommunicatorHandle(MPI_Comm* mpiCommunicator);
+	explicit MPIcommunicatorHandle(MPI_Comm* mpiCommunicator);
 	/** \brief Copies the handle \p rhs. */
 	MPIcommunicatorHandle(const MPIcommunicatorHandle& rhs);
 	/** \brief Moves the handle \p rhs. */

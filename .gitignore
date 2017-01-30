@@ -9,4 +9,4 @@ Testing
 CTestTestfile.cmake
 parallelTestsStderr.txt
 parallelTestsStdout.txt
-include/buildInformationNiceMPI.h
+src/buildInformationNiceMPI.h

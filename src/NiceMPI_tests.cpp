@@ -23,8 +23,8 @@ SOFTWARE. */
 #include <utility> // std::move
 #include <vector>
 #include <gtest/gtest.h>
-#include <buildInformationNiceMPI.h>
-#include <NiceMPI.h>
+#include <NiceMPI/NiceMPI.h>
+#include "buildInformationNiceMPI.h"
 
 using namespace NiceMPI;
 
@@ -36,36 +36,26 @@ public:
 		char theChar;
 	};
 
-	bool areCongruent(const MPI_Comm &a, const MPI_Comm &b) const {
+	bool areCongruentMPI(const MPI_Comm &a, const MPI_Comm &b) const {
 		int result;
 		MPI_Comm_compare(a, b, &result);
 		return result == MPI_CONGRUENT;
-	}
-	bool areIdentical(const MPI_Comm &a, const MPI_Comm &b) const {
-		int result;
-		MPI_Comm_compare(a, b, &result);
-		return result == MPI_IDENT;
-	}
-	Communicator splitEven() const {
-		const int color = world.rank() % 2;
-		const int key = world.rank();
-		return world.split(color,key);
-	}
-	void expectNear(const PODtype& expected, const PODtype& actual, double tolerance) {
-		EXPECT_EQ(expected.theInt, actual.theInt);
-		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
-		EXPECT_EQ(expected.theChar, actual.theChar);
-	}
-	PODtype createPODtypeForRank(int rank) {
-		PODtype result{podTypeInstance};
-		result.theInt = rank*2;
-		return result;
 	}
 	std::vector<PODtype> createPODtypeCollection(const int count) {
 		if(mpiWorld().rank() != sourceIndex) return {};
 		std::vector<PODtype> result;
 		for(int i = 0; i < count; ++i) result.push_back(createPODtypeForRank(i));
 		return result;
+	}
+	PODtype createPODtypeForRank(int rank) {
+		PODtype result{podTypeInstance};
+		result.theInt = rank*2;
+		return result;
+	}
+	void expectNear(const PODtype& expected, const PODtype& actual, double tolerance) {
+		EXPECT_EQ(expected.theInt, actual.theInt);
+		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
+		EXPECT_EQ(expected.theChar, actual.theChar);
 	}
 	void testGather(const std::vector<PODtype>& gathered) {
 		ASSERT_EQ(mpiWorld().size(),gathered.size());
@@ -85,31 +75,24 @@ public:
 };
 
 
-TEST_F(NiceMPItests, NiceMPIexceptionExist) {
-	const NiceMPIexception x{3};
-	EXPECT_EQ(3,x.error);
+
+TEST_F(NiceMPItests, areIdentical) {
+	EXPECT_TRUE(areIdentical(world,world));
+	const Communicator copy(world);
+	EXPECT_FALSE(areIdentical(world,copy));
 }
-TEST_F(NiceMPItests, newCommunicatorIsWorldCongruent) {
-	EXPECT_TRUE( areCongruent(MPI_COMM_WORLD,world.get()) );
-	EXPECT_FALSE( areIdentical(MPI_COMM_WORLD,world.get()) );
+TEST_F(NiceMPItests, areCongruent) {
+	EXPECT_FALSE(areCongruent(world,world));
+	const Communicator copy(world);
+	EXPECT_TRUE(areCongruent(world,copy));
 }
-TEST_F(NiceMPItests, newCommunicatorIsSelfCongruent) {
+TEST_F(NiceMPItests, defaultConstructorIsWorldCongruent) {
+	EXPECT_TRUE( areCongruentMPI(MPI_COMM_WORLD,world.get()) );
+}
+TEST_F(NiceMPItests, mpiCommConstructor) {
 	Communicator x(MPI_COMM_SELF);
-	EXPECT_TRUE( areCongruent(MPI_COMM_SELF, x.get()) );
-	EXPECT_FALSE( areIdentical(MPI_COMM_SELF, x.get()) );
+	EXPECT_TRUE( areCongruentMPI(MPI_COMM_SELF, x.get()) );
 }
-TEST_F(NiceMPItests, Copy) {
-	const Communicator copy{world};
-	EXPECT_TRUE( areCongruent(world.get(),copy.get()) );
-}
-TEST_F(NiceMPItests, Move) {
-	Communicator toMove;
-	MPI_Comm lhs = toMove.get();
-	const Communicator movedInto{std::move(toMove)};
-	EXPECT_TRUE( areIdentical(lhs,movedInto.get()) );
-}
-
-
 TEST_F(NiceMPItests, rank) {
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -121,7 +104,9 @@ TEST_F(NiceMPItests, size) {
 	EXPECT_EQ(size,world.size());
 }
 TEST_F(NiceMPItests, split) {
-	const Communicator splitted = splitEven();
+	const int color = world.rank() % 2;
+	const int key = world.rank();
+	Communicator splitted = world.split(color,key);
 
 	int expectedSize = 0;
 	if(maxWorldSize % 2 == 0) expectedSize = std::max(world.size()/2,1);
@@ -131,49 +116,33 @@ TEST_F(NiceMPItests, split) {
 	EXPECT_EQ(expectedSize,splitted.size());
 	EXPECT_EQ(world.rank()/2,splitted.rank());
 }
-TEST_F(NiceMPItests, Assignment) {
-	const Communicator splitted = splitEven();
-	Communicator worldCopy{world};
-	EXPECT_TRUE( areCongruent(splitted.get(),(worldCopy = splitted).get()) );
-}
-TEST_F(NiceMPItests, SelfAssignment) {
-	Communicator worldCopy;
-	worldCopy = worldCopy;
-	SUCCEED();
-}
-TEST_F(NiceMPItests, MoveAssignment) {
-	Communicator splitted = splitEven();
-	MPI_Comm lhs = splitted.get();
-	Communicator worldCopy;
-	EXPECT_TRUE( areIdentical(lhs,(worldCopy = std::move(splitted)).get()) );
-}
-TEST_F(NiceMPItests, mpiWorld) {
-	EXPECT_TRUE( areIdentical(MPI_COMM_WORLD,mpiWorld().get()) );
-	EXPECT_TRUE( areIdentical(mpiWorld().get(),mpiWorld().get()) );
-	EXPECT_TRUE( areCongruent(world.get(),mpiWorld().get()) );
-}
-TEST_F(NiceMPItests, mpiSelf) {
-	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,mpiSelf().get()) );
-	EXPECT_TRUE( areIdentical(mpiSelf().get(),mpiSelf().get()) );
-}
+
+
 TEST_F(NiceMPItests, createProxy) {
-	EXPECT_TRUE( areIdentical(MPI_COMM_WORLD,createProxy(MPI_COMM_WORLD).get()) );
+	EXPECT_TRUE(areIdentical(world, createProxy(world.get()) ));
 }
 TEST_F(NiceMPItests, createProxyStored) {
-	const Communicator proxy = createProxy(MPI_COMM_SELF);
-	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,proxy.get()) );
+	const Communicator proxy = createProxy(world.get());
+	EXPECT_TRUE( areIdentical(world,proxy) );
 }
 TEST_F(NiceMPItests, copiedProxiesAreNotProxies) {
-	const Communicator proxy = createProxy(MPI_COMM_SELF);
+	const Communicator proxy = createProxy(world.get());
 	const Communicator copy(proxy);
-	EXPECT_FALSE( areIdentical(MPI_COMM_SELF,copy.get()) );
-	EXPECT_TRUE( areCongruent(MPI_COMM_SELF,copy.get()) );
+	EXPECT_TRUE( areCongruent(world,copy) );
 }
 TEST_F(NiceMPItests, movedProxiesAreProxies) {
-	Communicator proxy = createProxy(MPI_COMM_SELF);
+	Communicator proxy = createProxy(world.get());
 	const Communicator moved(std::move(proxy));
-	EXPECT_TRUE( areIdentical(MPI_COMM_SELF,moved.get()) );
-	EXPECT_FALSE( areCongruent(MPI_COMM_SELF,moved.get()) );
+	EXPECT_TRUE( areIdentical(world,moved) );
+}
+TEST_F(NiceMPItests, mpiWorld) {
+	EXPECT_TRUE( areIdentical(createProxy(MPI_COMM_WORLD),mpiWorld()) );
+	EXPECT_TRUE( areIdentical(mpiWorld(),mpiWorld()) );
+	EXPECT_TRUE( areCongruent(world,mpiWorld()) );
+}
+TEST_F(NiceMPItests, mpiSelf) {
+	EXPECT_TRUE( areIdentical(createProxy(MPI_COMM_SELF),mpiSelf()) );
+	EXPECT_TRUE( areIdentical(mpiSelf(),mpiSelf()) );
 }
 
 
@@ -230,6 +199,7 @@ TEST_F(NiceMPItests, allGather) {
 	const PODtype myData = createPODtypeForRank(mpiWorld().rank());
 	testGather(mpiWorld().allGather(myData));
 }
+
 
 TEST_F(NiceMPItests, varyingScatterNothingSent) {
 	const std::vector<int> sendCounts(mpiWorld().size());

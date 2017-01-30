@@ -25,7 +25,7 @@ SOFTWARE. */
 
 #include <exception> // std::terminate
 #include <utility> // std::move
-#include "NiceMPIexception.h" // handleError
+#include <NiceMPI/NiceMPIexception.h> // handleError
 
 namespace NiceMPI {
 

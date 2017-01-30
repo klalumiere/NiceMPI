@@ -20,29 +20,32 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
-#ifndef MPI_RAII_H
-#define MPI_RAII_H
+#ifndef NICEMPIEXCEPTION_H
+#define NICEMPIEXCEPTION_H
 
-#include <exception> // std::terminate
-#include <mpi.h> // MPI_Init
-#include "NiceMPIexception.h" // handleError
+#include <stdexcept> // std::runtime_error
+#include <string> // std::to_string
+#include <mpi.h> // MPI_SUCCESS
 
 namespace NiceMPI {
 
-/** \brief Initialize and finalize MPI using
-	[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). */
-struct MPI_RAII {
-	/** \brief Initializes MPI. */
-	MPI_RAII(int argc, char* argv[]) {
-		handleError(MPI_Init(&argc, &argv));
-	}
-	/** \brief Finalizes MPI. */
-	~MPI_RAII() {
-		int error = MPI_Finalize();
-		if(error != MPI_SUCCESS) std::terminate();
-	}
+/** \brief Every exceptions inherit from this class. */
+class NiceMPIexception: public std::runtime_error {
+public:
+	/** \brief Create the exception with the error code \p error. */
+	explicit NiceMPIexception(int error): std::runtime_error("Error code " + std::to_string(error) + " in MPI."),
+		error(error)
+	{}
+
+	/** \brief Exception error code. */
+	const int error;
 };
+
+/** \brief Turns MPI \p error in \p NiceMPIexception. */
+inline void handleError(int error) {
+	if(error != MPI_SUCCESS) throw NiceMPIexception{error};
+}
 
 } // NiceMPi
 
-#endif  /* MPI_RAII_H */
+#endif  /* NICEMPIEXCEPTION_H */

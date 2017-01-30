@@ -21,12 +21,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #include <gtest/gtest.h>
-#include <NiceMPI/NiceMPI.h>
+#include <NiceMPI/NiceMPIexception.h>
 
 using namespace NiceMPI;
 
-int main(int argc, char* argv[]) {
-	MPI_RAII instance{argc,argv};
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+TEST(NiceMPIexceptionTests, NiceMPIexceptionConstructor) {
+	const int errorCode = 3;
+	const NiceMPIexception x{errorCode};
+	EXPECT_EQ(errorCode,x.error);
 }

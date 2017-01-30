@@ -24,7 +24,7 @@ SOFTWARE. */
 #define NICEMPI_HPP
 
 #include <cassert>
-#include "NiceMPIexception.h" // handleError
+#include <NiceMPI/NiceMPIexception.h> // handleError
 
 namespace NiceMPI {
 
@@ -188,6 +188,19 @@ inline std::vector<Type> Communicator::varyingScatterImpl(int source, const std:
 	handleError(MPI_Scatterv(toSend.data(), scaledSendCounts.data(), displacements.data(), MPI_UNSIGNED_CHAR, 
 		result.data(), scaledSendCounts[rank()], MPI_UNSIGNED_CHAR, source, handle.get() ));
 	return result;
+}
+
+
+
+inline bool areCongruent(const Communicator& a, const Communicator& b) {
+	int result;
+	MPI_Comm_compare(a.get(), b.get(), &result);
+	return result == MPI_CONGRUENT;
+}
+inline bool areIdentical(const Communicator& a, const Communicator& b) {
+	int result;
+	MPI_Comm_compare(a.get(), b.get(), &result);
+	return result == MPI_IDENT;
 }
 
 } // NiceMPi

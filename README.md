@@ -142,6 +142,26 @@ However, of course, if you copy a proxy, a new MPI implementation is created, as
 Communicator congruentToProxy(identicalToProxy);
 ```
 
+In case of doubt, you can always use the functions `areCongruent` and `areIdentical` to compare two communicators.
+
+```c++
+Communicator a;
+Communicator b(a);
+areCongruent(a,b); // true
+areIdentical(a,b); // false
+```
+
+## Other Features
+
+`Communicator`s can be splitted. For instance, to create two communicators, one that contains every processes with even rank and the other that contains every processes with odd rank, one can use
+
+```c++
+const int color = a.rank() % 2;
+const int key = a.rank();
+Communicator splitted = a.split(color,key);
+```
+The color select the `Communicator` in which the current process ends up, and the key determines the rank of this process in the new `Communicator`.
+
 # Documentation
 
 Documentation of this project can be built using [doxygen](http://www.doxygen.org).

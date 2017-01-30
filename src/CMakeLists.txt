@@ -1,5 +1,10 @@
 if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/src"))
-    add_executable(NiceMPIunitTests NiceMPI_tests.cpp tests_main.cpp)
+    add_executable(NiceMPIunitTests
+        MPIcommunicatorHandle_tests.cpp
+        NiceMPI_tests.cpp
+        NiceMPIexception_tests.cpp
+        tests_main.cpp
+    )
     target_include_directories(NiceMPIunitTests PUBLIC ${GTEST_INCLUDE_DIRS})
    
     set_target_properties(NiceMPIunitTests PROPERTIES CXX_STANDARD 11)
@@ -28,5 +33,5 @@ if((GTEST_FOUND) AND ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR
     add_custom_command(COMMENT ${comments} COMMAND ${MPIEXEC} ARGS ${argsParallel} TARGET ParallelTestsNiceMPI)
     add_test(NAME ParallelTestsNiceMPI COMMAND ${MPIEXEC} ${argsParallel})
 
-    configure_file(buildInformationNiceMPI.h.in ${PROJECT_SOURCE_DIR}/include/buildInformationNiceMPI.h @ONLY)
+    configure_file(buildInformationNiceMPI.h.in ${PROJECT_SOURCE_DIR}/src/buildInformationNiceMPI.h @ONLY)
 endif()
