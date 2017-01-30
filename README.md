@@ -17,6 +17,8 @@ Hence, internally, all the communications with MPI in this library
 
 Performances are a legitimate concern with this approach. What if, internally, the MPI implementation is able to use the knowledge of the data type to perform some optimization? However, a quick look at [MPICH](https://www.mpich.org/) source hints that optimizations seem to depends only on data size, not on data type. If this information were found to be invalid, I believe that this performance issue could be fixed and that the interface of this library could still remain intact at the expense of a more complicated implementation.
 
+Another choice made with this library is to support only C++11 and more. This significantly simplifies the implementation. It is plausible to think that this simplification may ultimately benifit the interface.
+
 # Dependencies
 
 - A C++ compiler that supports C++11, like recent versions of [clang++](http://clang.llvm.org/) or [g++](https://gcc.gnu.org/) [<sup>1</sup>](#footnoteOne). 
