@@ -20,6 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
+#include <chrono> // std::chrono::microseconds
+#include <thread> // std::this_thread::sleep_for;
 #include <utility> // std::move
 #include <vector>
 #include <gtest/gtest.h>
@@ -293,5 +295,57 @@ TEST_F(NiceMPItests, varyingAllGatherWithDisplacements) {
 	else ASSERT_EQ(expectedOrder.size(),gathered.size());
 	for(unsigned i = 0; i < gathered.size(); ++i) {
 		expectNear(createPODtypeForRank(expectedOrder[i]), gathered[i], defaultTolerance);
+	}
+}
+
+
+TEST_F(NiceMPItests, asyncSendDoNotBlock) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+	SUCCEED();
+}
+TEST_F(NiceMPItests, asyncReceiveDoNotBlock) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().asyncReceive<PODtype>(sourceIndex);
+	SUCCEED();
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWait) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+		r.wait();
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
+		r.wait();
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
+	}
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
+	const int tag = 3;
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex,tag);
+		r.wait();
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex,MPI_ANY_TAG);
+		r.wait();
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
+	}
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
+		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
 	}
 }

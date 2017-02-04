@@ -63,6 +63,20 @@ inline std::vector<Type> Communicator::allGather(Type data) {
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+inline ReceiveRequest<Type> Communicator::asyncReceive(int source, int tag) {
+	ReceiveRequest<Type> r;
+	handleError(MPI_Irecv(r.dataPtr.get(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
+	return r;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+inline SendRequest Communicator::asyncSend(Type data, int destination, int tag) {
+	MPI_Request x;
+	handleError(MPI_Isend(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get(),&x));
+	return SendRequest(x);
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
 inline Type Communicator::broadcast(int source, Type data) {
 	handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,handle.get() ));
 	return data;
