@@ -20,6 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
+#include <chrono> // std::chrono::microseconds
+#include <thread> // std::this_thread::sleep_for;
 #include <utility> // std::move
 #include <vector>
 #include <gtest/gtest.h>
@@ -316,6 +318,33 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndWait) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
 		r.wait();
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
+	}
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
+	const int tag = 3;
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex,tag);
+		r.wait();
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex,MPI_ANY_TAG);
+		r.wait();
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
+	}
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
+		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
 		std::unique_ptr<PODtype> data = r.take();
 		expectNear(podTypeInstance, *data, defaultTolerance);
 	}

@@ -50,6 +50,12 @@ public:
 	/** \brief Initializes this request with its MPI implementation. */
 	SendRequest(MPI_Request value): value(value)
 	{}
+	/** \brief Returns true if the send operation is completed. */
+	bool isCompleted() {
+		int flag = 0;
+		handleError(MPI_Test(&value, &flag, MPI_STATUS_IGNORE));
+		return flag != 0;
+	}
 	/** \brief Waits for the data to be send. */
 	void wait() {
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
@@ -81,6 +87,12 @@ public:
 	/** \brief This object can only be moved, since the call to asyncReceive depends on the address of \p data. **/
 	ReceiveRequest& operator=(ReceiveRequest&&) = delete;
 
+	/** \brief Returns true if the receive operation is completed. */
+	bool isCompleted() {
+		int flag = 0;
+		handleError(MPI_Test(&value, &flag, MPI_STATUS_IGNORE));
+		return flag != 0;
+	}
 	/** \brief Waits for the data to be send. */
 	void wait() {
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
