@@ -78,6 +78,22 @@ if(mpiWorld().rank() == destinationIndex) {
 }
 ```
 
+Non blocking send and receive functions are also available
+
+```c++
+if(mpiWorld().rank() == sourceIndex) {
+	SendRequest r = mpiWorld().asyncSend(toSend,destinationIndex);
+	r.wait();
+}
+if(mpiWorld().rank() == destinationIndex) {
+	ReceiveRequest<MyStruct> r = mpiWorld().asyncReceive<MyStruct>(sourceIndex);
+	r.wait();
+	std::unique_ptr<MyStruct> data = r.take();
+}
+```
+
+The classes `SendRequest` and `ReceiveRequest` also implement the function `isCompleted()` that returns true if the request is completed, i.e. if the data were respectively sent or received.
+
 Typical MPI functions are implemented, and they can all be used with [POD](http://en.cppreference.com/w/cpp/concept/PODType). For instance, the basic collective communication methods are
 
 ```c++
