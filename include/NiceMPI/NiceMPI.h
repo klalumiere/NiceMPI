@@ -23,7 +23,9 @@ SOFTWARE. */
 #ifndef NICEMPI_H
 #define NICEMPI_H
 
+#include <memory> // unique_ptr
 #include <type_traits> // std::is_pod, std::enable_if
+#include <utility> // std::move
 #include <vector>
 #include <mpi.h> // MPI_Comm
 #include <NiceMPI/MPI_RAII.h> // for convenience
@@ -32,12 +34,73 @@ SOFTWARE. */
 
 #define UNUSED(x) ((void)x)
 
+
 /** \brief An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH). **/
 namespace NiceMPI {
 
-class Communicator &mpiWorld(); // Forward declaration
-class Communicator &mpiSelf(); // Forward declaration
-class Communicator createProxy(MPI_Comm mpiCommunicator); // Forward declaration
+class Communicator; // Forward declaration
+Communicator &mpiWorld(); // Forward declaration
+Communicator &mpiSelf(); // Forward declaration
+Communicator createProxy(MPI_Comm mpiCommunicator); // Forward declaration
+
+
+/** \brief Returns after an asyncSend call, this object allows to control the status of the call. */
+class SendRequest {
+public:
+	/** \brief Initializes this request with its MPI implementation. */
+	SendRequest(MPI_Request value): value(value)
+	{}
+	/** \brief Waits for the data to be send. */
+	void wait() {
+		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
+	}
+
+private:
+	/** \brief MPI implementation. */
+	MPI_Request value;
+};
+
+
+
+/** \brief Returns after an asyncReceive call, this object allows to control the status of the call. */
+template<class Type>
+class ReceiveRequest {
+public:
+	/** \brief The function asyncReceive initializes the member of the request directly. */
+	ReceiveRequest(): dataPtr(new Type)
+	{}
+	/** \brief Destroys the handle \p rhs. Only there because of the
+		[rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
+	~ReceiveRequest() = default;
+	/** \brief This object can only be moved, since the call to asyncReceive depends on the address of \p data. **/
+	ReceiveRequest(const ReceiveRequest&) = delete;
+	/** \brief This object can only be moved, since the call to asyncReceive depends on the address of \p data. **/
+	ReceiveRequest(ReceiveRequest&&) = default;
+	/** \brief This object can only be moved, since the call to asyncReceive depends on the address of \p data. **/
+	ReceiveRequest& operator=(const ReceiveRequest&) = delete;
+	/** \brief This object can only be moved, since the call to asyncReceive depends on the address of \p data. **/
+	ReceiveRequest& operator=(ReceiveRequest&&) = delete;
+
+	/** \brief Waits for the data to be send. */
+	void wait() {
+		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
+	}
+	/** Returns the data, assuming that the user made sure that the receiving operation was completed. */
+	std::unique_ptr<Type> take() {
+		return std::move(dataPtr);
+	}
+
+	/** \brief The function asyncReceive needs the address of \p data. */
+	friend Communicator;
+
+private:
+	/** \brief MPI implementation. */
+	MPI_Request value;
+	/** \brief \p data to be received. */
+	std::unique_ptr<Type> dataPtr;
+};
+
+
 
 /** \brief Represents a MPI communitator. */
 class Communicator {
@@ -59,6 +122,18 @@ public:
 	/** \brief Regroups the \p data of every processes in a single vector and returns it. */
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
 	std::vector<Type> allGather(Type data);
+
+	/** \brief Starts to receive data of type \p Type from the \p source. A \p tag can be required to be provided
+  with the data. \p MPI_ANY_TAG can be used. Returns a ReceiveRequest object that can be used to find out if
+  the data were received, or to wait until they are received and get them.*/
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	ReceiveRequest<Type> asyncReceive(int source, int tag = 0);
+
+	/** \brief Starts to send \p data to the \p destination. A \p tag can be required to be provided with the data.
+  \p MPI_ANY_TAG can be used. Returns a SendRequest object that can be used to find out if the data were sent, or
+  to wait until they are sent.*/
+	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	SendRequest asyncSend(Type data, int destination, int tag = 0);
 
 	/** \brief The \p source broadcast its \p data to every processes. */
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>

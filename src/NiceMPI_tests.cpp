@@ -295,3 +295,28 @@ TEST_F(NiceMPItests, varyingAllGatherWithDisplacements) {
 		expectNear(createPODtypeForRank(expectedOrder[i]), gathered[i], defaultTolerance);
 	}
 }
+
+
+TEST_F(NiceMPItests, asyncSendDoNotBlock) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+	SUCCEED();
+}
+TEST_F(NiceMPItests, asyncReceiveDoNotBlock) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().asyncReceive<PODtype>(sourceIndex);
+	SUCCEED();
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWait) {
+	if(sourceIndex == destinationIndex) return;
+	if(mpiWorld().rank() == sourceIndex) {
+		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+		r.wait();
+	}
+	if(mpiWorld().rank() == destinationIndex) {
+		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
+		r.wait();
+		std::unique_ptr<PODtype> data = r.take();
+		expectNear(podTypeInstance, *data, defaultTolerance);
+	}
+}
