@@ -56,7 +56,7 @@ public:
 		handleError(MPI_Test(&value, &flag, MPI_STATUS_IGNORE));
 		return flag != 0;
 	}
-	/** \brief Waits for the data to be send. */
+	/** \brief Waits for the data to be sent. */
 	void wait() {
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
 	}
@@ -93,7 +93,7 @@ public:
 		handleError(MPI_Test(&value, &flag, MPI_STATUS_IGNORE));
 		return flag != 0;
 	}
-	/** \brief Waits for the data to be send. */
+	/** \brief Waits for the data to be received. */
 	void wait() {
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
 	}
