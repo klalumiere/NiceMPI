@@ -54,11 +54,22 @@ inline Communicator Communicator::split(int color, int key) const {
 }
 
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline std::vector<Type> Communicator::allGather(Type data) {
 	std::vector<Type> result(size());
 	handleError(MPI_Allgather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,
 		handle.get() ));
+	return result;
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline std::vector<typename Collection::value_type> Communicator::allGather(const Collection& data) {
+	using Type = typename Collection::value_type;
+	std::vector<Type> result(size()*data.size());
+	handleError(MPI_Allgather(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,result.data(),
+		sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR, handle.get() ));
 	return result;
 }
 
@@ -93,12 +104,24 @@ inline Collection Communicator::broadcast(int source, Collection data) {
 	return data;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline std::vector<Type> Communicator::gather(int source, Type data) {
 	std::vector<Type> result;
 	if(rank() == source) result.resize(size());
 	handleError(MPI_Gather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,
 		handle.get() ));
+	return result;
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+std::vector<typename Collection::value_type> Communicator::gather(int source, const Collection& data) {
+	using Type = typename Collection::value_type;
+	std::vector<Type> result;
+	if(rank() == source) result.resize(size()*data.size());
+	handleError(MPI_Gather(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,result.data(),
+		sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,source,handle.get() ));
 	return result;
 }
 

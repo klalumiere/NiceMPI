@@ -149,8 +149,16 @@ public:
 
 
 	/** \brief Regroups the \p data of every processes in a single vector and returns it. */
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	std::vector<Type> allGather(Type data);
+
+	/** \brief Regroups the \p data of every processes in a single vector and returns it. */
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	std::vector<typename Collection::value_type> allGather(const Collection& data);
 
 	/** \brief Starts to receive data of type \p Type from the \p source. A \p tag can be required to be provided
   with the data. \p MPI_ANY_TAG can be used. Returns a ReceiveRequest object that can be used to find out if
@@ -177,8 +185,16 @@ public:
 	Collection broadcast(int source, Collection data);
 
 	/** \brief The \p source gathers the \p data of every processes. */
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	std::vector<Type> gather(int source, Type data);
+
+	/** \brief The \p source gathers the \p data of every processes. */
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	std::vector<typename Collection::value_type> gather(int source, const Collection& data);
 
 	/** \brief Wait to receive data of type \p Type from the \p source. A \p tag can be required to be provided with
   the data. \p MPI_ANY_TAG can be used.*/
