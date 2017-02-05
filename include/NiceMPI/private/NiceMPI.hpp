@@ -76,9 +76,20 @@ inline SendRequest Communicator::asyncSend(Type data, int destination, int tag) 
 	return SendRequest(x);
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline Type Communicator::broadcast(int source, Type data) {
 	handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,handle.get() ));
+	return data;
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline Collection Communicator::broadcast(int source, Collection data) {
+	using Type = typename Collection::value_type;
+	auto sizeToBroadcast = broadcast(source,data.size());
+	if(rank() != source) data = initializeWithCount(Collection{},sizeToBroadcast);
+	handleError(MPI_Bcast(data.data(),sizeof(Type)*sizeToBroadcast,MPI_UNSIGNED_CHAR,source,handle.get() ));
 	return data;
 }
 

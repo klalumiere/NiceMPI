@@ -165,8 +165,16 @@ public:
 	SendRequest asyncSend(Type data, int destination, int tag = 0);
 
 	/** \brief The \p source broadcast its \p data to every processes. */
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	Type broadcast(int source, Type data);
+
+	/** \brief The \p source broadcast its \p data to every processes. */
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	Collection broadcast(int source, Collection data);
 
 	/** \brief The \p source gathers the \p data of every processes. */
 	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>

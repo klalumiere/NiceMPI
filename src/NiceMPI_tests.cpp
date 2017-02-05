@@ -81,6 +81,14 @@ public:
 			for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
 		}
 	}
+	template<class CollectionType>
+	void testBroadcastCollection() {
+		CollectionType data;
+		if(mpiWorld().rank() == sourceIndex) data = {{ podTypeInstance, podTypeInstance }};
+		const CollectionType results = mpiWorld().broadcast(sourceIndex, data);
+		EXPECT_EQ(2,results.size());
+		for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
+	}
 
 	const Communicator world;
 	const int sourceIndex = 0;
@@ -370,4 +378,10 @@ TEST_F(NiceMPItests, sendAndReceiveAnythingVector) {
 }
 TEST_F(NiceMPItests, sendAndReceiveAnythingArray) {
 	testSendAndReceiveCollection<std::array<PODtype,2>>();
+}
+TEST_F(NiceMPItests, broadcastVector) {
+	testBroadcastCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, broadcastArray) {
+	testBroadcastCollection<std::array<PODtype,2>>();
 }
