@@ -75,8 +75,8 @@ inline std::vector<typename Collection::value_type> Communicator::allGather(cons
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
 inline ReceiveRequest<Type> Communicator::asyncReceive(int source, int tag) {
-	ReceiveRequest<Type> r;
-	handleError(MPI_Irecv(r.dataPtr.get(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
+	ReceiveRequest<Type> r(1);
+	handleError(MPI_Irecv(r.data.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
 	return r;
 }
 

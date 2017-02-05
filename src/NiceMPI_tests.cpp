@@ -367,8 +367,9 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndWait) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
 		r.wait();
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
@@ -381,8 +382,9 @@ TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex,MPI_ANY_TAG);
 		r.wait();
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
@@ -394,8 +396,9 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
 		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
 }
 
@@ -424,3 +427,17 @@ TEST_F(NiceMPItests, allGatherVector) {
 TEST_F(NiceMPItests, allGatherArray) {
 	testAllGather<std::array<PODtype,2>>();
 }
+// TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitVector) {
+// 	if(sourceIndex == destinationIndex) return;
+// 	if(mpiWorld().rank() == sourceIndex) {
+// 		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
+// 		r.wait();
+// 	}
+// 	if(mpiWorld().rank() == destinationIndex) {
+// 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
+// 		r.wait();
+// 		std::vector<PODtype> data = r.take();
+// 		ASSERT_EQ(1,data.size());
+// 		expectNear(podTypeInstance, data[0], defaultTolerance);
+// 	}
+// }

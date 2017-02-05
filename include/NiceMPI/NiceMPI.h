@@ -90,7 +90,7 @@ template<class Type>
 class ReceiveRequest {
 public:
 	/** \brief The function asyncReceive initializes the member of the request directly. */
-	ReceiveRequest(): dataPtr(new Type)
+	ReceiveRequest(int count): data(count)
 	{}
 	/** \brief Destroys the handle \p rhs. Only there because of the
 		[rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
@@ -115,8 +115,8 @@ public:
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
 	}
 	/** Returns the data, assuming that the user made sure that the receiving operation was completed. */
-	std::unique_ptr<Type> take() {
-		return std::move(dataPtr);
+	std::vector<Type> take() {
+		return std::move(data);
 	}
 
 	/** \brief The function asyncReceive needs the address of \p data. */
@@ -126,7 +126,7 @@ private:
 	/** \brief MPI implementation. */
 	MPI_Request value;
 	/** \brief \p data to be received. */
-	std::unique_ptr<Type> dataPtr;
+	std::vector<Type> data;
 };
 
 
