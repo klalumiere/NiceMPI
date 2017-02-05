@@ -54,7 +54,7 @@ inline Communicator Communicator::split(int color, int key) const {
 }
 
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline std::vector<Type> Communicator::allGather(Type data) {
 	std::vector<Type> result(size());
 	handleError(MPI_Allgather(&data,sizeof(Type),MPI_UNSIGNED_CHAR,result.data(),sizeof(Type),MPI_UNSIGNED_CHAR,
@@ -62,27 +62,69 @@ inline std::vector<Type> Communicator::allGather(Type data) {
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline std::vector<typename Collection::value_type> Communicator::allGather(const Collection& data) {
+	using Type = typename Collection::value_type;
+	std::vector<Type> result(size()*data.size());
+	handleError(MPI_Allgather(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,result.data(),
+		sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR, handle.get() ));
+	return result;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline ReceiveRequest<Type> Communicator::asyncReceive(int source, int tag) {
-	ReceiveRequest<Type> r;
-	handleError(MPI_Irecv(r.dataPtr.get(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
+	ReceiveRequest<Type> r(1);
+	handleError(MPI_Irecv(r.data.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
 	return r;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline ReceiveRequest<Collection> Communicator::asyncReceive(int count, int source, int tag) {
+	using Type = typename Collection::value_type;
+	ReceiveRequest<Collection> r(count);
+	handleError(MPI_Irecv(r.data.data(),sizeof(Type)*count,MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
+	return r;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline SendRequest Communicator::asyncSend(Type data, int destination, int tag) {
 	MPI_Request x;
 	handleError(MPI_Isend(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get(),&x));
 	return SendRequest(x);
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline SendRequest Communicator::asyncSend(const Collection& data, int destination, int tag) {
+	using Type = typename Collection::value_type;
+	MPI_Request x;
+	handleError(MPI_Isend(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,destination,tag,handle.get(),&x));
+	return SendRequest(x);
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline Type Communicator::broadcast(int source, Type data) {
 	handleError(MPI_Bcast(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,handle.get() ));
 	return data;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline Collection Communicator::broadcast(int source, Collection data) {
+	using Type = typename Collection::value_type;
+	auto sizeToBroadcast = broadcast(source,data.size());
+	if(rank() != source) data = initializeWithCount(Collection{},sizeToBroadcast);
+	handleError(MPI_Bcast(data.data(),sizeof(Type)*sizeToBroadcast,MPI_UNSIGNED_CHAR,source,handle.get() ));
+	return data;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline std::vector<Type> Communicator::gather(int source, Type data) {
 	std::vector<Type> result;
 	if(rank() == source) result.resize(size());
@@ -91,10 +133,32 @@ inline std::vector<Type> Communicator::gather(int source, Type data) {
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+std::vector<typename Collection::value_type> Communicator::gather(int source, const Collection& data) {
+	using Type = typename Collection::value_type;
+	std::vector<Type> result;
+	if(rank() == source) result.resize(size()*data.size());
+	handleError(MPI_Gather(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,result.data(),
+		sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,source,handle.get() ));
+	return result;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline Type Communicator::receiveAndBlock(int source, int tag) {
 	Type data;
 	handleError(MPI_Recv(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get() ,MPI_STATUS_IGNORE));
+	return data;
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+Collection Communicator::receiveAndBlock(int count, int source, int tag) {
+	Collection data = initializeWithCount(Collection{},count);
+	using Type = typename Collection::value_type;
+	handleError(MPI_Recv(data.data(),sizeof(Type)*count,MPI_UNSIGNED_CHAR,source,tag,handle.get() ,MPI_STATUS_IGNORE));
 	return data;
 }
 
@@ -108,9 +172,17 @@ inline std::vector<Type> Communicator::scatter(int source, const std::vector<Typ
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline void Communicator::sendAndBlock(Type data, int destination, int tag) {
 	handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get() ));
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline void Communicator::sendAndBlock(const Collection& data, int destination, int tag) {
+	using Type = typename Collection::value_type;
+	handleError(MPI_Send(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,destination,tag,handle.get() ));
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
@@ -185,6 +257,15 @@ template<typename Type>
 inline std::vector<int> Communicator::createScaledDisplacements(std::vector<int> displacements) {
 	for(auto&& x: displacements) x *= sizeof(Type);
 	return displacements;
+}
+
+template<typename Type>
+inline std::vector<Type> Communicator::initializeWithCount(std::vector<Type>, int count) {
+	return std::vector<Type>(count);
+}
+template<typename Type, std::size_t N>
+inline std::array<Type,N> Communicator::initializeWithCount(std::array<Type,N> a, int /*count*/) {
+	return a;
 }
 
 inline int Communicator::sum(const std::vector<int>& data) {

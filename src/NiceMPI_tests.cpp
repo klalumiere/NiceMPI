@@ -54,17 +54,83 @@ public:
 		result.theInt = rank*2;
 		return result;
 	}
-	void expectNear(const PODtype& expected, const PODtype& actual, double tolerance) {
-		EXPECT_EQ(expected.theInt, actual.theInt);
-		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
-		EXPECT_EQ(expected.theChar, actual.theChar);
-	}
-	void testGather(const std::vector<PODtype>& gathered) {
+	void expectGathered(const std::vector<PODtype>& gathered) {
 		ASSERT_EQ(mpiWorld().size(),gathered.size());
 		for(int i=0; i<mpiWorld().size(); ++i) {
 			PODtype expected{podTypeInstance};
 			expected.theInt = 2*i;
 			expectNear(expected,gathered[i],defaultTolerance);
+		}
+	}
+	void expectGatheredCollection(const std::vector<PODtype>& gathered, const int sizeByProcess) {
+		ASSERT_EQ(mpiWorld().size()*sizeByProcess,gathered.size());
+		for(int i=0; i<mpiWorld().size(); ++i) {
+			PODtype expected{podTypeInstance};
+			expected.theInt = 2*i;
+			expectNear(expected,gathered[sizeByProcess*i],defaultTolerance);
+			expectNear(expected,gathered[sizeByProcess*i+1],defaultTolerance);
+		}
+	}
+	void expectNear(const PODtype& expected, const PODtype& actual, double tolerance) {
+		EXPECT_EQ(expected.theInt, actual.theInt);
+		EXPECT_NEAR(expected.theDouble, actual.theDouble, tolerance);
+		EXPECT_EQ(expected.theChar, actual.theChar);
+	}
+	template<class CollectionType>
+	void testAsyncSendAndReceiveCollection() {
+		if(sourceIndex == destinationIndex) return;
+		CollectionType toSend;
+		const int count = 2;
+		if(mpiWorld().rank() == sourceIndex) {
+			toSend = {{ podTypeInstance, podTypeInstance }};
+			SendRequest r = mpiWorld().asyncSend(toSend,destinationIndex);
+			r.wait();
+		}
+		if(mpiWorld().rank() == destinationIndex) {
+			ReceiveRequest<CollectionType> r = mpiWorld().asyncReceive<CollectionType>(count,sourceIndex);
+			r.wait();
+			std::vector<PODtype> data = r.take();
+			EXPECT_EQ(count,data.size());
+			for(auto&& x: data) expectNear(podTypeInstance, x, defaultTolerance);
+		}
+	}
+	template<class CollectionType>
+	void testBroadcastCollection() {
+		CollectionType data;
+		if(mpiWorld().rank() == sourceIndex) data = {{ podTypeInstance, podTypeInstance }};
+		const CollectionType results = mpiWorld().broadcast(sourceIndex, data);
+		EXPECT_EQ(2,results.size());
+		for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
+	}
+	template<class CollectionType>
+	void testAllGather() {
+		PODtype x = createPODtypeForRank(mpiWorld().rank());
+		const int sizeByProcess = 2;
+		const CollectionType toSend = {{ x, x }};
+		const std::vector<PODtype> gathered = mpiWorld().allGather(toSend);
+		expectGatheredCollection(gathered,sizeByProcess);
+	}
+	template<class CollectionType>
+	void testGather() {
+		PODtype x = createPODtypeForRank(mpiWorld().rank());
+		const int sizeByProcess = 2;
+		const CollectionType toSend = {{ x, x }};
+		const std::vector<PODtype> gathered = mpiWorld().gather(sourceIndex, toSend );
+		if(mpiWorld().rank()==sourceIndex) expectGatheredCollection(gathered,sizeByProcess);
+		else EXPECT_EQ(0,gathered.size());
+	}
+	template<class CollectionType>
+	void testSendAndReceiveCollection() {
+		if(sourceIndex == destinationIndex) return;
+		if(mpiWorld().rank() == sourceIndex) {
+			const CollectionType toSend = {{ podTypeInstance, podTypeInstance }};
+			mpiWorld().sendAndBlock(toSend,destinationIndex);
+		}
+		if(mpiWorld().rank() == destinationIndex) {
+			const int count = 2;
+			const CollectionType results = mpiWorld().receiveAndBlock<CollectionType>(count,sourceIndex);
+			EXPECT_EQ(count,results.size());
+			for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
 		}
 	}
 
@@ -194,12 +260,12 @@ TEST_F(NiceMPItests, scatterTwoWithSpare) {
 }
 TEST_F(NiceMPItests, gather) {
 	const std::vector<PODtype> gathered = mpiWorld().gather(sourceIndex, createPODtypeForRank(mpiWorld().rank()) );
-	if(mpiWorld().rank()==sourceIndex) testGather(gathered);
+	if(mpiWorld().rank()==sourceIndex) expectGathered(gathered);
 	else EXPECT_EQ(0,gathered.size());
 }
 TEST_F(NiceMPItests, allGather) {
 	const PODtype myData = createPODtypeForRank(mpiWorld().rank());
-	testGather(mpiWorld().allGather(myData));
+	expectGathered(mpiWorld().allGather(myData));
 }
 
 
@@ -242,7 +308,7 @@ TEST_F(NiceMPItests, varyingGatherOneFromEach) {
 	const std::vector<PODtype> data = { createPODtypeForRank(mpiWorld().rank()) };
 	const std::vector<int> receiveCounts(mpiWorld().size(),1);
 	const std::vector<PODtype> gathered = mpiWorld().varyingGather(sourceIndex,data,receiveCounts);
-	if(mpiWorld().rank()==sourceIndex) testGather(gathered);
+	if(mpiWorld().rank()==sourceIndex) expectGathered(gathered);
 	else EXPECT_EQ(0,gathered.size());
 }
 TEST_F(NiceMPItests, varyingGatherWithDisplacements) {
@@ -273,7 +339,7 @@ TEST_F(NiceMPItests, varyingAllGatherOneFromEach) {
 	const std::vector<PODtype> data = { createPODtypeForRank(mpiWorld().rank()) };
 	const std::vector<int> receiveCounts(mpiWorld().size(),1);
 	const std::vector<PODtype> gathered = mpiWorld().varyingAllGather(data,receiveCounts);
-	testGather(gathered);
+	expectGathered(gathered);
 }
 TEST_F(NiceMPItests, varyingAllGatherWithDisplacements) {
 	std::vector<PODtype> data;
@@ -318,8 +384,9 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndWait) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
 		r.wait();
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
@@ -332,8 +399,9 @@ TEST_F(NiceMPItests, asyncSendAndReceiveWithTag) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex,MPI_ANY_TAG);
 		r.wait();
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
@@ -345,7 +413,40 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
 	if(mpiWorld().rank() == destinationIndex) {
 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
 		while(!r.isCompleted()) std::this_thread::sleep_for(std::chrono::microseconds{});
-		std::unique_ptr<PODtype> data = r.take();
-		expectNear(podTypeInstance, *data, defaultTolerance);
+		std::vector<PODtype> data = r.take();
+		ASSERT_EQ(1,data.size());
+		expectNear(podTypeInstance, data[0], defaultTolerance);
 	}
+}
+
+
+TEST_F(NiceMPItests, sendAndReceiveAnythingVector) {
+	testSendAndReceiveCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, sendAndReceiveAnythingArray) {
+	testSendAndReceiveCollection<std::array<PODtype,2>>();
+}
+TEST_F(NiceMPItests, broadcastVector) {
+	testBroadcastCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, broadcastArray) {
+	testBroadcastCollection<std::array<PODtype,2>>();
+}
+TEST_F(NiceMPItests, gatherVector) {
+	testGather<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, gatherArray) {
+	testGather<std::array<PODtype,2>>();
+}
+TEST_F(NiceMPItests, allGatherVector) {
+	testAllGather<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, allGatherArray) {
+	testAllGather<std::array<PODtype,2>>();
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitVector) {
+	testAsyncSendAndReceiveCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitArray) {
+	testAsyncSendAndReceiveCollection<std::array<PODtype,2>>();
 }

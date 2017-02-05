@@ -128,6 +128,20 @@ std::vector<MyStruct> allGatheredvTwo = mpiWorld().varyingAllGather(vecToSend,
 	receiveCounts,displacements);
 ```
 
+Every functions defined for a single [POD](http://en.cppreference.com/w/cpp/concept/PODType) type is also defined for a collection of [POD](http://en.cppreference.com/w/cpp/concept/PODType)s. This collection can either be held in a `std::vector` or in a `std::array`. For instance,
+
+```c++
+const int count = 2;
+if(mpiWorld().rank() == sourceIndex) {
+	const std::vector<MyStruct> collection(count,toSend);
+	mpiWorld().sendAndBlock(collection,destinationIndex);
+}
+if(mpiWorld().rank() == destinationIndex) {
+	const std::vector<MyStruct> received =
+		mpiWorld().receiveAndBlock<std::vector<MyStruct>>(count,sourceIndex);
+}
+```
+
 # Communicator
 
 ## Identical v.s. Congruent communicators
