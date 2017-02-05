@@ -77,6 +77,24 @@ public:
 		EXPECT_EQ(expected.theChar, actual.theChar);
 	}
 	template<class CollectionType>
+	void testAsyncSendAndReceiveCollection() {
+		if(sourceIndex == destinationIndex) return;
+		CollectionType toSend;
+		const int count = 2;
+		if(mpiWorld().rank() == sourceIndex) {
+			toSend = {{ podTypeInstance, podTypeInstance }};
+			SendRequest r = mpiWorld().asyncSend(toSend,destinationIndex);
+			r.wait();
+		}
+		if(mpiWorld().rank() == destinationIndex) {
+			ReceiveRequest<CollectionType> r = mpiWorld().asyncReceive<CollectionType>(count,sourceIndex);
+			r.wait();
+			std::vector<PODtype> data = r.take();
+			EXPECT_EQ(count,data.size());
+			for(auto&& x: data) expectNear(podTypeInstance, x, defaultTolerance);
+		}
+	}
+	template<class CollectionType>
 	void testBroadcastCollection() {
 		CollectionType data;
 		if(mpiWorld().rank() == sourceIndex) data = {{ podTypeInstance, podTypeInstance }};
@@ -101,7 +119,6 @@ public:
 		if(mpiWorld().rank()==sourceIndex) expectGatheredCollection(gathered,sizeByProcess);
 		else EXPECT_EQ(0,gathered.size());
 	}
-	
 	template<class CollectionType>
 	void testSendAndReceiveCollection() {
 		if(sourceIndex == destinationIndex) return;
@@ -427,17 +444,9 @@ TEST_F(NiceMPItests, allGatherVector) {
 TEST_F(NiceMPItests, allGatherArray) {
 	testAllGather<std::array<PODtype,2>>();
 }
-// TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitVector) {
-// 	if(sourceIndex == destinationIndex) return;
-// 	if(mpiWorld().rank() == sourceIndex) {
-// 		SendRequest r = mpiWorld().asyncSend(podTypeInstance,destinationIndex);
-// 		r.wait();
-// 	}
-// 	if(mpiWorld().rank() == destinationIndex) {
-// 		ReceiveRequest<PODtype> r = mpiWorld().asyncReceive<PODtype>(sourceIndex);
-// 		r.wait();
-// 		std::vector<PODtype> data = r.take();
-// 		ASSERT_EQ(1,data.size());
-// 		expectNear(podTypeInstance, data[0], defaultTolerance);
-// 	}
-// }
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitVector) {
+	testAsyncSendAndReceiveCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, asyncSendAndReceiveAndWaitArray) {
+	testAsyncSendAndReceiveCollection<std::array<PODtype,2>>();
+}

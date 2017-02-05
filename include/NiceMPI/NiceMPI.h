@@ -61,6 +61,31 @@ struct is_std_array<std::array<T,N>> {
 
 
 
+/** \brief Type traits that defines an alias for the type contained in a container. Usefull in ReceiveRequest.
+  *Specialization*.*/
+template<class T>
+struct to_contained_type {
+	using type = T;
+};
+/** \brief Type traits that defines an alias for the type contained in a container. Usefull in ReceiveRequest.
+  *Specialization*.*/
+template<class T, class Allocator>
+struct to_contained_type<std::vector<T,Allocator>> {
+	using type = typename std::vector<T,Allocator>::value_type;
+};
+/** \brief Type traits that defines an alias for the type contained in a container. Usefull in ReceiveRequest.
+  *Specialization*.*/
+template<class T, std::size_t N>
+struct to_contained_type<std::array<T,N>> {
+	using type = typename std::array<T,N>::value_type;
+};
+/** \brief Type traits that defines an alias for the type contained in a container. Usefull in ReceiveRequest.
+  *Alias*.*/
+template<class T>
+using to_contained_type_t = typename to_contained_type<T>::type;
+
+
+
 /** \brief Returns after an asyncSend call, this object allows to control the status of the call. */
 class SendRequest {
 public:
@@ -115,7 +140,7 @@ public:
 		handleError(MPI_Wait(&value,MPI_STATUS_IGNORE));
 	}
 	/** Returns the data, assuming that the user made sure that the receiving operation was completed. */
-	std::vector<Type> take() {
+	std::vector<to_contained_type_t<Type>> take() {
 		return std::move(data);
 	}
 
@@ -126,7 +151,7 @@ private:
 	/** \brief MPI implementation. */
 	MPI_Request value;
 	/** \brief \p data to be received. */
-	std::vector<Type> data;
+	std::vector<to_contained_type_t<Type>> data;
 };
 
 
@@ -163,14 +188,34 @@ public:
 	/** \brief Starts to receive data of type \p Type from the \p source. A \p tag can be required to be provided
   with the data. \p MPI_ANY_TAG can be used. Returns a ReceiveRequest object that can be used to find out if
   the data were received, or to wait until they are received and get them.*/
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	ReceiveRequest<Type> asyncReceive(int source, int tag = 0);
+
+	/** \brief Starts to receive data of type \p Type from the \p source. A \p tag can be required to be provided
+  with the data. \p MPI_ANY_TAG can be used. Returns a ReceiveRequest object that can be used to find out if
+  the data were received, or to wait until they are received and get them.*/
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	ReceiveRequest<Collection> asyncReceive(int count, int source, int tag = 0);
 
 	/** \brief Starts to send \p data to the \p destination. A \p tag can be required to be provided with the data.
   \p MPI_ANY_TAG can be used. Returns a SendRequest object that can be used to find out if the data were sent, or
   to wait until they are sent.*/
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	SendRequest asyncSend(Type data, int destination, int tag = 0);
+
+	/** \brief Starts to send \p data to the \p destination. A \p tag can be required to be provided with the data.
+  \p MPI_ANY_TAG can be used. Returns a SendRequest object that can be used to find out if the data were sent, or
+  to wait until they are sent.*/
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	SendRequest asyncSend(const Collection& data, int destination, int tag = 0);
 
 	/** \brief The \p source broadcast its \p data to every processes. */
 	template<typename Type,

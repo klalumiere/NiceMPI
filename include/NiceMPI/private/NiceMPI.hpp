@@ -73,17 +73,37 @@ inline std::vector<typename Collection::value_type> Communicator::allGather(cons
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline ReceiveRequest<Type> Communicator::asyncReceive(int source, int tag) {
 	ReceiveRequest<Type> r(1);
 	handleError(MPI_Irecv(r.data.data(),sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
 	return r;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline ReceiveRequest<Collection> Communicator::asyncReceive(int count, int source, int tag) {
+	using Type = typename Collection::value_type;
+	ReceiveRequest<Collection> r(count);
+	handleError(MPI_Irecv(r.data.data(),sizeof(Type)*count,MPI_UNSIGNED_CHAR,source,tag,handle.get(),&r.value));
+	return r;
+}
+
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline SendRequest Communicator::asyncSend(Type data, int destination, int tag) {
 	MPI_Request x;
 	handleError(MPI_Isend(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get(),&x));
+	return SendRequest(x);
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline SendRequest Communicator::asyncSend(const Collection& data, int destination, int tag) {
+	using Type = typename Collection::value_type;
+	MPI_Request x;
+	handleError(MPI_Isend(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,destination,tag,handle.get(),&x));
 	return SendRequest(x);
 }
 
