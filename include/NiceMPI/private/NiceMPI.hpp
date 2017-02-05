@@ -91,10 +91,20 @@ inline std::vector<Type> Communicator::gather(int source, Type data) {
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline Type Communicator::receiveAndBlock(int source, int tag) {
 	Type data;
 	handleError(MPI_Recv(&data,sizeof(Type),MPI_UNSIGNED_CHAR,source,tag,handle.get() ,MPI_STATUS_IGNORE));
+	return data;
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+Collection Communicator::receiveAndBlock(int count, int source, int tag) {
+	Collection data = initializeWithCount(Collection{},count);
+	using Type = typename Collection::value_type;
+	handleError(MPI_Recv(data.data(),sizeof(Type)*count,MPI_UNSIGNED_CHAR,source,tag,handle.get() ,MPI_STATUS_IGNORE));
 	return data;
 }
 
@@ -108,9 +118,17 @@ inline std::vector<Type> Communicator::scatter(int source, const std::vector<Typ
 	return result;
 }
 
-template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
+template<typename Type, typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type>
 inline void Communicator::sendAndBlock(Type data, int destination, int tag) {
 	handleError(MPI_Send(&data,sizeof(Type),MPI_UNSIGNED_CHAR,destination,tag,handle.get() ));
+}
+
+template<class Collection,
+	typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type
+>
+inline void Communicator::sendAndBlock(const Collection& data, int destination, int tag) {
+	using Type = typename Collection::value_type;
+	handleError(MPI_Send(data.data(),sizeof(Type)*data.size(),MPI_UNSIGNED_CHAR,destination,tag,handle.get() ));
 }
 
 template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type>
@@ -185,6 +203,15 @@ template<typename Type>
 inline std::vector<int> Communicator::createScaledDisplacements(std::vector<int> displacements) {
 	for(auto&& x: displacements) x *= sizeof(Type);
 	return displacements;
+}
+
+template<typename Type>
+inline std::vector<Type> Communicator::initializeWithCount(std::vector<Type>, int count) {
+	return std::vector<Type>(count);
+}
+template<typename Type, std::size_t N>
+inline std::array<Type,N> Communicator::initializeWithCount(std::array<Type,N> a, int /*count*/) {
+	return a;
 }
 
 inline int Communicator::sum(const std::vector<int>& data) {

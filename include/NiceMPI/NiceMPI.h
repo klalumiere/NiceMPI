@@ -23,6 +23,8 @@ SOFTWARE. */
 #ifndef NICEMPI_H
 #define NICEMPI_H
 
+#include <array>
+#include <cstddef> // std::size_t
 #include <memory> // unique_ptr
 #include <type_traits> // std::is_pod, std::enable_if
 #include <utility> // std::move
@@ -42,6 +44,21 @@ class Communicator; // Forward declaration
 Communicator &mpiWorld(); // Forward declaration
 Communicator &mpiSelf(); // Forward declaration
 Communicator createProxy(MPI_Comm mpiCommunicator); // Forward declaration
+
+
+
+/** \brief std::array that contains PODs are both POD and collection, so we need to distinguish them. */
+template<class T>
+struct is_std_array {
+	static constexpr bool value = false;
+};
+/** \brief std::array that contains PODs are both POD and collection, so we need to distinguish them.
+  *Specialization*.*/
+template<class T, std::size_t N>
+struct is_std_array<std::array<T,N>> {
+	static constexpr bool value = true;
+};
+
 
 
 /** \brief Returns after an asyncSend call, this object allows to control the status of the call. */
@@ -157,8 +174,17 @@ public:
 
 	/** \brief Wait to receive data of type \p Type from the \p source. A \p tag can be required to be provided with
   the data. \p MPI_ANY_TAG can be used.*/
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	Type receiveAndBlock(int source, int tag = 0);
+
+	/** \brief Wait to receive data of type \p Type from the \p source. A \p tag can be required to be provided with
+  the data. \p MPI_ANY_TAG can be used.*/
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	Collection receiveAndBlock(int count, int source, int tag = 0);
 
 	/** \brief The \p source scatters \p sendCount of its data \p toSend to every processes. Hence, the process with
   rank \p i receives the data from \p toSend[i] to toSend[i+\p sendCount].*/
@@ -167,8 +193,17 @@ public:
 
 	/** \brief Wait to send \p data to the \p destination. A \p tag can be required to be provided with
   the data. \p MPI_ANY_TAG can be used.*/
-	template<typename Type, typename std::enable_if<std::is_pod<Type>::value,bool>::type = true>
+	template<typename Type,
+		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
+	>
 	void sendAndBlock(Type data, int destination, int tag = 0);
+
+	/** \brief Wait to send \p data to the \p destination. A \p tag can be required to be provided with
+  the data. \p MPI_ANY_TAG can be used.*/
+	template<class Collection,
+		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
+	>
+	void sendAndBlock(const Collection& data, int destination, int tag = 0);
 
 	/** \brief Regroups the \p data of every processes in a single vector and returns it. \p receiveCounts[i] data
   is received from the process with rank \p i. These data starts at the index \p displacements[i] of the
@@ -217,6 +252,12 @@ private:
 	/** \brief Returns the \p displacements scaled by the size of \p Type.*/
 	template<typename Type>
 	static std::vector<int> createScaledDisplacements(std::vector<int> displacements);
+	/** \brief Initializes the collection with \p count elements. */
+	template<typename Type>
+	static std::vector<Type> initializeWithCount(std::vector<Type>, int count);
+	/** \brief Initializes the collection with \p count elements. */
+	template<typename Type, std::size_t N>
+	static std::array<Type,N> initializeWithCount(std::array<Type,N> a, int /*count*/);
 	/** \brief Returns the sum of the \p data. */
 	static int sum(const std::vector<int>& data);
 	/** \brief Implements \p varyingScatter(). */

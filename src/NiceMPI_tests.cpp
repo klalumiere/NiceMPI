@@ -67,6 +67,20 @@ public:
 			expectNear(expected,gathered[i],defaultTolerance);
 		}
 	}
+	template<class CollectionType>
+	void testSendAndReceiveCollection() {
+		if(sourceIndex == destinationIndex) return;
+		if(mpiWorld().rank() == sourceIndex) {
+			const CollectionType toSend = {{ podTypeInstance, podTypeInstance }};
+			mpiWorld().sendAndBlock(toSend,destinationIndex);
+		}
+		if(mpiWorld().rank() == destinationIndex) {
+			const int count = 2;
+			const CollectionType results = mpiWorld().receiveAndBlock<CollectionType>(count,sourceIndex);
+			EXPECT_EQ(count,results.size());
+			for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
+		}
+	}
 
 	const Communicator world;
 	const int sourceIndex = 0;
@@ -348,4 +362,12 @@ TEST_F(NiceMPItests, asyncSendAndReceiveAndTest) {
 		std::unique_ptr<PODtype> data = r.take();
 		expectNear(podTypeInstance, *data, defaultTolerance);
 	}
+}
+
+
+TEST_F(NiceMPItests, sendAndReceiveAnythingVector) {
+	testSendAndReceiveCollection<std::vector<PODtype>>();
+}
+TEST_F(NiceMPItests, sendAndReceiveAnythingArray) {
+	testSendAndReceiveCollection<std::array<PODtype,2>>();
 }
