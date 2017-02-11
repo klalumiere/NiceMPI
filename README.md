@@ -52,14 +52,14 @@ const int sourceIndex = 0;
 const int destinationIndex = mpiWorld().size() -1;
 const unsigned char toSend = 'K';
 if(mpiWorld().rank() == sourceIndex) {
-	mpiWorld().sendAndBlock(toSend,destinationIndex);
+	mpiWorld().send(toSend,destinationIndex);
 }
 if(mpiWorld().rank() == destinationIndex) {
-	auto result = mpiWorld().receiveAndBlock<unsigned char>(sourceIndex);
+	auto result = mpiWorld().receive<unsigned char>(sourceIndex);
 }
 ```
 
-You'll notice that, when necessary, the wrapper use a more precise name than the MPI function it wraps. For instance, above, ``MPI_Send`` and ``MPI_Recv`` were renamed to ``sendAndBlock`` and ``receiveAndBlock`` in order to put the emphasis on the blocking property of these functions.
+You'll notice that, when necessary, the wrapper use a more precise name than the MPI function it wraps. For instance, above, ``MPI_Send`` and ``MPI_Recv`` were renamed to ``send`` and ``receive`` in order to put the emphasis on the blocking property of these functions.
 
 As advertised, it is very easy to go from this example to an example where you send any [POD](http://en.cppreference.com/w/cpp/concept/PODType) type
 
@@ -71,10 +71,10 @@ struct MyStruct {
 };
 const MyStruct toSend{6.66,42,'K'};
 if(mpiWorld().rank() == sourceIndex) {
-	mpiWorld().sendAndBlock(toSend,destinationIndex);
+	mpiWorld().send(toSend,destinationIndex);
 }
 if(mpiWorld().rank() == destinationIndex) {
-	auto result = mpiWorld().receiveAndBlock<MyStruct>(sourceIndex);
+	auto result = mpiWorld().receive<MyStruct>(sourceIndex);
 }
 ```
 
@@ -134,11 +134,11 @@ Every functions defined for a single [POD](http://en.cppreference.com/w/cpp/conc
 const int count = 2;
 if(mpiWorld().rank() == sourceIndex) {
 	const std::vector<MyStruct> collection(count,toSend);
-	mpiWorld().sendAndBlock(collection,destinationIndex);
+	mpiWorld().send(collection,destinationIndex);
 }
 if(mpiWorld().rank() == destinationIndex) {
 	const std::vector<MyStruct> received =
-		mpiWorld().receiveAndBlock<std::vector<MyStruct>>(count,sourceIndex);
+		mpiWorld().receive<std::vector<MyStruct>>(count,sourceIndex);
 }
 ```
 

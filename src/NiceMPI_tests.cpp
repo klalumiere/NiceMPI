@@ -124,11 +124,11 @@ public:
 		if(sourceIndex == destinationIndex) return;
 		if(mpiWorld().rank() == sourceIndex) {
 			const CollectionType toSend = {{ podTypeInstance, podTypeInstance }};
-			mpiWorld().sendAndBlock(toSend,destinationIndex);
+			mpiWorld().send(toSend,destinationIndex);
 		}
 		if(mpiWorld().rank() == destinationIndex) {
 			const int count = 2;
-			const CollectionType results = mpiWorld().receiveAndBlock<CollectionType>(count,sourceIndex);
+			const CollectionType results = mpiWorld().receive<CollectionType>(count,sourceIndex);
 			EXPECT_EQ(count,results.size());
 			for(auto&& x: results) expectNear(podTypeInstance, x, defaultTolerance);
 		}
@@ -217,25 +217,25 @@ TEST_F(NiceMPItests, mpiSelf) {
 TEST_F(NiceMPItests, sendAndReceive) {
 	if(sourceIndex == destinationIndex) return;
 	const unsigned char toSend = 'K';
-	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().send(toSend,destinationIndex);
 	if(mpiWorld().rank() == destinationIndex) {
-		EXPECT_EQ(toSend,mpiWorld().receiveAndBlock<unsigned char>(sourceIndex));
+		EXPECT_EQ(toSend,mpiWorld().receive<unsigned char>(sourceIndex));
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveAnything) {
 	if(sourceIndex == destinationIndex) return;
-	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(podTypeInstance,destinationIndex);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().send(podTypeInstance,destinationIndex);
 	if(mpiWorld().rank() == destinationIndex) {
-		expectNear(podTypeInstance, mpiWorld().receiveAndBlock<PODtype>(sourceIndex), defaultTolerance);
+		expectNear(podTypeInstance, mpiWorld().receive<PODtype>(sourceIndex), defaultTolerance);
 	}
 }
 TEST_F(NiceMPItests, sendAndReceiveWithTag) {
 	if(sourceIndex == destinationIndex) return;
 	const unsigned char toSend = 'K';
 	const int tag = 3;
-	if(mpiWorld().rank() == sourceIndex) mpiWorld().sendAndBlock(toSend,destinationIndex,tag);
+	if(mpiWorld().rank() == sourceIndex) mpiWorld().send(toSend,destinationIndex,tag);
 	if(mpiWorld().rank() == destinationIndex) {
-		EXPECT_EQ(toSend,mpiWorld().receiveAndBlock<unsigned char>(sourceIndex,MPI_ANY_TAG));
+		EXPECT_EQ(toSend,mpiWorld().receive<unsigned char>(sourceIndex,MPI_ANY_TAG));
 	}
 }
 TEST_F(NiceMPItests, broadcast) {

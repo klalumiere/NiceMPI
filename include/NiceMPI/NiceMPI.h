@@ -246,14 +246,14 @@ public:
 	template<typename Type,
 		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
 	>
-	Type receiveAndBlock(int source, int tag = 0);
+	Type receive(int source, int tag = 0);
 
 	/** \brief Wait to receive data of type \p Type from the \p source. A \p tag can be required to be provided with
   the data. \p MPI_ANY_TAG can be used.*/
 	template<class Collection,
 		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
 	>
-	Collection receiveAndBlock(int count, int source, int tag = 0);
+	Collection receive(int count, int source, int tag = 0);
 
 	/** \brief The \p source scatters \p sendCount of its data \p toSend to every processes. Hence, the process with
   rank \p i receives the data from \p toSend[i] to toSend[i+\p sendCount].*/
@@ -265,14 +265,14 @@ public:
 	template<typename Type,
 		typename std::enable_if<std::is_pod<Type>::value and !is_std_array<Type>::value,bool>::type = true
 	>
-	void sendAndBlock(Type data, int destination, int tag = 0);
+	void send(Type data, int destination, int tag = 0);
 
 	/** \brief Wait to send \p data to the \p destination. A \p tag can be required to be provided with
   the data. \p MPI_ANY_TAG can be used.*/
 	template<class Collection,
 		typename std::enable_if<std::is_pod<typename Collection::value_type>::value,bool>::type = true
 	>
-	void sendAndBlock(const Collection& data, int destination, int tag = 0);
+	void send(const Collection& data, int destination, int tag = 0);
 
 	/** \brief Regroups the \p data of every processes in a single vector and returns it. \p receiveCounts[i] data
   is received from the process with rank \p i. These data starts at the index \p displacements[i] of the
