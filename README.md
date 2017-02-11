@@ -3,14 +3,7 @@ An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH).
 
 # Rationale
 
-The main advantage of this library when compared to other C++ MPI wrapper that I know about is that it does not require to *register* user-defined types with a MPI facility like `MPI_Type_*`. This is true for any so-called [POD](http://en.cppreference.com/w/cpp/concept/PODType) type. To achieve this, we used the fact that, by definition, an unsigned char in C++ is a [byte](https://en.wikipedia.org/wiki/Byte) and that, according to the [C++11 standard draft](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3337.pdf)
-
-> A pointer to a standard-layout struct object, suitably converted using a reinterpret_cast, points to its
-> initial member (or if that member is a bit-field, then to the unit in which it resides) and vice versa. [ Note:
-> There might therefore be unnamed padding within a standard-layout struct object, but not at its beginning,
-as necessary to achieve appropriate alignment. - end note ]
-
-Hence, internally, all the communications with MPI in this library
+The main advantage of this library when compared to other C++ MPI wrapper that I know about is that it does not require to *register* user-defined types with a MPI facility like `MPI_Type_*`. This is true for any so-called [POD](http://en.cppreference.com/w/cpp/concept/PODType) type. To achieve this, internally, all the communications with MPI in this library
 
 1. First make sure that the type that is manipulated is indeed [POD](http://en.cppreference.com/w/cpp/concept/PODType) by using [`std::is_pod`](http://en.cppreference.com/w/cpp/types/is_pod). 
 2. Treat the type as an array of bytes (unsigned char).
