@@ -23,7 +23,6 @@ SOFTWARE. */
 #ifndef MPI_RAII_H
 #define MPI_RAII_H
 
-#include <exception> // std::terminate
 #include <mpi.h> // MPI_Init
 #include <NiceMPI/NiceMPIexception.h> // handleError
 
@@ -38,8 +37,7 @@ struct MPI_RAII {
 	}
 	/** \brief Finalizes MPI. */
 	~MPI_RAII() {
-		int error = MPI_Finalize();
-		if(error != MPI_SUCCESS) std::terminate();
+		MPI_Finalize(); // Never fails (with MPICH implementation)
 	}
 };
 
