@@ -6,7 +6,7 @@ An alternative to Boost.MPI for a user friendly C++ interface for MPI (MPICH).
 The main advantage of this library when compared to other C++ MPI wrapper that I know about is that it does not require to *register* user-defined types with a MPI facility like `MPI_Type_*`. This is true for any so-called [POD](http://en.cppreference.com/w/cpp/concept/PODType) type. To achieve this, internally, all the communications with MPI in this library
 
 1. First make sure that the type that is manipulated is indeed [POD](http://en.cppreference.com/w/cpp/concept/PODType) by using [`std::is_pod`](http://en.cppreference.com/w/cpp/types/is_pod). 
-2. Treat the type as an array of bytes (unsigned char).
+2. Treat the type as an array of [bytes](https://en.wikipedia.org/wiki/Byte) (unsigned char).
 
 Performances are a legitimate concern with this approach. What if, internally, the MPI implementation is able to use the knowledge of the data type to perform some optimization? However, a quick look at [MPICH](https://www.mpich.org/) source hints that optimizations seem to depends only on data size, not on data type. If this information were found to be invalid, I believe that this performance issue could be fixed and that the interface of this library could still remain intact at the expense of a more complicated implementation.
 
