@@ -58,6 +58,7 @@ public:
 	/** \brief Destroys the underlying MPI communicator. */
 	~OwnedCommunicator() {
 		int error = MPI_Comm_free(&mpiCommunicator); // Most likely error: free nullptr, free MPI_COMM_WORLD
+		((void)error); // Unused in release mode
 		assert(error == MPI_SUCCESS); // Ignore MPI_Comm_free error in release
 	}
 	/** \brief [Rule of 5](http://en.cppreference.com/w/cpp/language/rule_of_three). */
