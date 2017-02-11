@@ -194,6 +194,8 @@ Communicator splitted = a.split(color,key);
 ```
 The color select the `Communicator` in which the current process ends up, and the key determines the rank of this process in the new `Communicator`.
 
+[Discussion about this project on reddit](https://www.reddit.com/r/cpp/comments/5si721/nicempi_an_alternative_to_boostmpi_for_a_user/)
+
 # Documentation
 
 Documentation of this project can be built using [doxygen](http://www.doxygen.org).
