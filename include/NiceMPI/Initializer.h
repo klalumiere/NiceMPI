@@ -39,6 +39,14 @@ struct Initializer {
 	~Initializer() {
 		MPI_Finalize(); // Never fails (with MPICH implementation)
 	}
+	/** \brief Can't copy, or MPI_Finalize will be called twice. */
+	Initializer(const Initializer&) = delete;
+	/** \brief Can be moved. */
+	Initializer(Initializer&&) = default;
+	/** \brief Can't copy, or MPI_Finalize will be called twice. */
+	Initializer& operator=(const Initializer&) = delete;
+	/** \brief Can be moved. */
+	Initializer& operator=(Initializer&&) = default;
 };
 
 } // NiceMPi
