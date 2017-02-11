@@ -23,10 +23,8 @@ SOFTWARE. */
 #include <gtest/gtest.h>
 #include <NiceMPI/NiceMPI.h>
 
-using namespace NiceMPI;
-
 int main(int argc, char* argv[]) {
-	MPI_RAII instance{argc,argv};
+	NiceMPI::Initializer instance{argc,argv};
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -34,7 +34,7 @@ The typical program that print the world size and the rank of each process looks
 
 int main(int argc, char* argv[]) {
 	using namespace NiceMPI;
-	MPI_RAII instance{argc,argv};
+	NiceMPI::Initializer instance{argc,argv};
 	if(mpiWorld().rank() == 0) {
 		std::cout << "The world size is " <<  mpiWorld().size() << std::endl;
 	}
@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The ``MPI_RAII`` struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). ``mpiWorld()`` is a function that returns a global ``Communicator``. The class ``Communicator`` will be described in more details later. In the present context, it suffices to know that the ``Communicator`` returned by ``mpiWorld()`` is a wrapper around ``MPI_COMM_WORLD``.
+This program can be ran on 8 cores with *mpiexec -np 8 theProgramName*. The ``NiceMPI::Initializer`` struct initialize and finalize MPI using the [RAII programming idiom](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). ``mpiWorld()`` is a function that returns a global ``Communicator``. The class ``Communicator`` will be described in more details later. In the present context, it suffices to know that the ``Communicator`` returned by ``mpiWorld()`` is a wrapper around ``MPI_COMM_WORLD``.
 
 Once you have a communicator, sending and receiving data is very easy. For instance, the code to send the char *'K'* from the first process in the world to the last is
 

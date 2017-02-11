@@ -30,7 +30,7 @@ SOFTWARE. */
 #include <utility> // std::move
 #include <vector>
 #include <mpi.h> // MPI_Comm
-#include <NiceMPI/MPI_RAII.h> // for convenience
+#include <NiceMPI/Initializer.h> // for convenience
 #include <NiceMPI/NiceMPIexception.h> // for convenience
 #include "private/MPIcommunicatorHandle.h"
 

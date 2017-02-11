@@ -20,8 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
-#ifndef MPI_RAII_H
-#define MPI_RAII_H
+#ifndef INITIALIZER_H
+#define INITIALIZER_H
 
 #include <mpi.h> // MPI_Init
 #include <NiceMPI/NiceMPIexception.h> // handleError
@@ -30,17 +30,17 @@ namespace NiceMPI {
 
 /** \brief Initialize and finalize MPI using
 	[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization). */
-struct MPI_RAII {
+struct Initializer {
 	/** \brief Initializes MPI. */
-	MPI_RAII(int argc, char* argv[]) {
+	Initializer(int argc, char* argv[]) {
 		handleError(MPI_Init(&argc, &argv));
 	}
 	/** \brief Finalizes MPI. */
-	~MPI_RAII() {
+	~Initializer() {
 		MPI_Finalize(); // Never fails (with MPICH implementation)
 	}
 };
 
 } // NiceMPi
 
-#endif  /* MPI_RAII_H */
+#endif  /* INITIALIZER_H */
