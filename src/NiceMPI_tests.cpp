@@ -50,14 +50,14 @@ public:
 		return result;
 	}
 	PODtype createPODtypeForRank(int rank) {
-		PODtype result{podTypeInstance};
+		PODtype result = podTypeInstance;
 		result.theInt = rank*2;
 		return result;
 	}
 	void expectGathered(const std::vector<PODtype>& gathered) {
 		ASSERT_EQ(mpiWorld().size(),gathered.size());
 		for(int i=0; i<mpiWorld().size(); ++i) {
-			PODtype expected{podTypeInstance};
+			PODtype expected = podTypeInstance;
 			expected.theInt = 2*i;
 			expectNear(expected,gathered[i],defaultTolerance);
 		}
@@ -65,7 +65,7 @@ public:
 	void expectGatheredCollection(const std::vector<PODtype>& gathered, const int sizeByProcess) {
 		ASSERT_EQ(mpiWorld().size()*sizeByProcess,gathered.size());
 		for(int i=0; i<mpiWorld().size(); ++i) {
-			PODtype expected{podTypeInstance};
+			PODtype expected = podTypeInstance;
 			expected.theInt = 2*i;
 			expectNear(expected,gathered[sizeByProcess*i],defaultTolerance);
 			expectNear(expected,gathered[sizeByProcess*i+1],defaultTolerance);
