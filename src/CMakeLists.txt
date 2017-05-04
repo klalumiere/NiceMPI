@@ -2,7 +2,12 @@ if(NOT TARGET NiceMPI)
     add_library(NiceMPI MPIcommunicatorHandle.cpp)
     target_include_directories(NiceMPI PUBLIC ${PROJECT_SOURCE_DIR}/include)
     target_include_directories(NiceMPI PUBLIC ${MPI_CXX_INCLUDE_PATH})
+
     set_target_properties(NiceMPI PROPERTIES CXX_STANDARD 11)
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+        list(APPEND result -std=c++11) #It would seems that Intel doesn't honor the property CXX_STANDARD...
+    endif()
+
     set_target_properties(NiceMPI PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
     set_target_properties(NiceMPI PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
     target_compile_options(NiceMPI PRIVATE -Wall -Wextra -pedantic)
