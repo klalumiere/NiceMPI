@@ -197,4 +197,5 @@ Documentation of this project can be built using [doxygen](http://www.doxygen.or
 - [Discussion about this project on reddit](https://www.reddit.com/r/cpp/comments/5si721/nicempi_an_alternative_to_boostmpi_for_a_user/)
 
 <a name="footnoteOne"><sup>1</sup></a> Of course, one could *compress* a POD so that the eventual padding zeros are not transmitted through MPI communications. This would definetily improve performances, although the actual gain would depend on how much padding the POD structure actually have.
+
 <a name="footnoteTwo"><sup>2</sup></a> The library is tested with clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final) and gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4).
