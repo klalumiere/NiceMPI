@@ -8,13 +8,13 @@ The main advantage of this library when compared to other C++ MPI wrapper that I
 1. First make sure that the type that is manipulated is indeed [POD](http://en.cppreference.com/w/cpp/concept/PODType) by using [`std::is_pod`](http://en.cppreference.com/w/cpp/types/is_pod). 
 2. Treat the type as an array of [bytes](https://en.wikipedia.org/wiki/Byte) (unsigned char).
 
-Performances are a legitimate concern with this approach. What if, internally, the MPI implementation is able to use the knowledge of the data type to perform some optimization? However, a quick look at [MPICH](https://www.mpich.org/) source hints that optimizations seem to depends only on data size, not on data type. If this information were found to be invalid, I believe that this performance issue could be fixed and that the interface of this library could still remain intact at the expense of a more complicated implementation.
+Performances are a legitimate concern with this approach. What if, internally, the MPI implementation is able to use the knowledge of the data type to perform some optimization? However, a quick look at [MPICH](https://www.mpich.org/) source hints that optimizations seem to depends only on data size, not on data type. If this information were found to be invalid, I believe that this performance issue could be fixed and that the interface of this library could still remain intact at the expense of a more complicated implementation [<sup>1</sup>](#footnoteOne).
 
 Another choice made with this library is to support only C++11 and more. This significantly simplifies the implementation. It is plausible to think that this simplification may ultimately benifit the interface.
 
 # Dependencies
 
-- A C++ compiler that supports C++11, like recent versions of [clang++](http://clang.llvm.org/) or [g++](https://gcc.gnu.org/) [<sup>1</sup>](#footnoteOne). 
+- A C++ compiler that supports C++11, like recent versions of [clang++](http://clang.llvm.org/) or [g++](https://gcc.gnu.org/) [<sup>2</sup>](#footnoteTwo).
 - [MPICH](https://www.mpich.org/), an open source implementation of MPI. Other implementations of MPI might work with this library, but they were not tested.
 
 # Usage
@@ -196,4 +196,5 @@ Documentation of this project can be built using [doxygen](http://www.doxygen.or
 - [An excellent MPI tutorial](http://mpitutorial.com/tutorials/)
 - [Discussion about this project on reddit](https://www.reddit.com/r/cpp/comments/5si721/nicempi_an_alternative_to_boostmpi_for_a_user/)
 
-<a name="footnoteOne"><sup>1</sup></a> The library is tested with clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final) and gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4).
+<a name="footnoteOne"><sup>1</sup></a> Of course, one could *compress* a POD so that the eventual padding zeros are not transmitted through MPI communications. This would definetily improve performances, although the actual gain would depend on how much padding the POD structure actually have.
+<a name="footnoteTwo"><sup>2</sup></a> The library is tested with clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final) and gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4).
